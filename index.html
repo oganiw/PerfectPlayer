@@ -1,0 +1,1877 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>圓音播放器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9EDF3; --surface:#FFFFFF; --surface-2:#EEF1F6; --ink:#18203A; --ink-soft:#5B6580; --line:#D3D9E4;
+  --wave:#AAB4C9; --played:#2F44C4; --flag:#D99A12; --flag-ink:#2A1E00; --loop:rgba(217,154,18,.17);
+  --accent:#2F44C4; --accent-ink:#FFFFFF; --danger:#B3261E;
+  --num:"Barlow Semi Condensed","Avenir Next Condensed","Arial Narrow",system-ui,sans-serif;
+  --text:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11172B; --surface:#1A2140; --surface-2:#242C50; --ink:#E7EAF3; --ink-soft:#9AA3BE; --line:#2F3862;
+    --wave:#48527C; --played:#8C9BFF; --flag:#F0B53A; --flag-ink:#231800; --loop:rgba(240,181,58,.18);
+    --accent:#8C9BFF; --accent-ink:#0E1330; --danger:#FF8A80; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11172B; --surface:#1A2140; --surface-2:#242C50; --ink:#E7EAF3; --ink-soft:#9AA3BE; --line:#2F3862;
+  --wave:#48527C; --played:#8C9BFF; --flag:#F0B53A; --flag-ink:#231800; --loop:rgba(240,181,58,.18);
+  --accent:#8C9BFF; --accent-ink:#0E1330; --danger:#FF8A80; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--text);-webkit-text-size-adjust:100%}
+body{min-height:100vh}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:disabled{opacity:.4;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg{display:block}
+
+.app{max-width:720px;margin:0 auto;padding:0 12px calc(28px + env(safe-area-inset-bottom))}
+.deck{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 10px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.title{flex:1;min-width:0}
+#songName{display:block;font-weight:700;font-size:17px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#songMeta{display:block;font-size:12px;color:var(--ink-soft);margin-top:1px}
+.file{position:relative;display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--accent);color:var(--accent);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.file:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+
+.stage{position:relative;background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+#zoom{display:block;width:100%;height:88px;touch-action:none;cursor:grab}
+#overview{display:block;width:100%;height:34px;touch-action:none;border-top:1px solid var(--line);cursor:pointer}
+.hint{position:absolute;left:0;right:0;top:0;height:88px;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:14px;line-height:1.6;pointer-events:none;text-align:center;padding:0 24px}
+.hint[hidden]{display:none}
+#storyImg{display:block;width:100%;aspect-ratio:3/2;max-height:46vh;object-fit:contain;background:var(--surface-2)}
+.storyNote{margin:0;min-height:88px;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:14px;text-align:center;padding:0 24px;pointer-events:none}
+.storyNum{position:absolute;right:8px;bottom:42px;pointer-events:none;background:rgba(0,0,0,.55);color:#fff;font-family:var(--num);font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px}
+.viewsw{position:absolute;left:6px;top:6px;display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--surface);border:1px solid var(--line);opacity:.95}
+.stage.story .viewsw{top:auto;bottom:42px}
+.viewsw button{min-height:26px;padding:0 9px;border:none;border-radius:7px;background:none;font-size:12px;font-weight:600;color:var(--ink-soft)}
+.viewsw button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.zoomctl{position:absolute;right:6px;top:24px;display:flex;flex-direction:column;gap:4px}
+.zoomctl button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:17px;line-height:1;padding:0}
+
+.times{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--num);font-weight:600;font-size:18px;font-variant-numeric:tabular-nums;padding:4px 2px;min-height:32px}
+#tLeft{color:var(--ink-soft)}
+.looptag{font-family:var(--text);font-size:12px;font-weight:600;background:var(--flag);color:var(--flag-ink);border:none;padding:5px 10px;border-radius:999px;white-space:nowrap}
+.looptag[hidden]{display:none}
+
+.transport{display:grid;grid-template-columns:1fr 1fr 1.7fr 1.05fr 1fr;gap:8px;align-items:center}
+.tbtn{height:52px;border:none;border-radius:12px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;gap:3px;font-size:13px;font-weight:600;padding:0}
+.tbtn svg{width:22px;height:22px;fill:currentColor}
+.tbtn .n{font-family:var(--num);font-size:15px}
+.play{height:64px;border-radius:32px;background:var(--accent);color:var(--accent-ink)}
+.play svg{width:32px;height:32px}
+.mark{background:var(--flag);color:var(--flag-ink);font-size:14px;gap:4px}
+.mark svg{width:16px;height:16px}
+
+.settings{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.stepper{flex:1 1 140px;display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;font-size:13px;color:var(--ink-soft);min-width:0}
+.stepper .lbl{padding-left:8px;white-space:nowrap}
+.stepper button{width:34px;height:32px;border:none;border-radius:8px;background:var(--surface-2);font-size:18px;line-height:1;padding:0;flex:none}
+.vox input[type=range]{flex:1;min-width:0;margin:0 6px;height:32px;accent-color:var(--accent);background:transparent}
+.vox .pct{border:none;background:none;font-family:var(--num);font-weight:600;font-size:16px;color:var(--ink);min-width:3.2em;text-align:center;padding:0 4px}
+.vox.off{opacity:.45}
+.stepper output{font-family:var(--num);font-weight:600;font-size:16px;color:var(--ink);min-width:3.2em;text-align:center}
+
+.listhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:18px 2px 8px}
+.listhead h2{font-size:15px;margin:0;font-weight:700}
+.sync{display:block;font-size:12px;font-weight:500;color:var(--ink-soft);margin-top:2px}
+.sync.ok{color:var(--played)}
+.sync.bad{color:var(--danger)}
+.count{font-family:var(--num);color:var(--ink-soft);font-weight:600;margin-left:4px;font-size:15px}
+.ghost{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-height:36px;padding:0 12px;font-size:13px;font-weight:600}
+
+#list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.seg{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;scroll-margin-top:380px}
+.seg.now{border-left-color:var(--played)}
+.seg.looping{background-image:linear-gradient(var(--loop),var(--loop))}
+.row{display:flex;align-items:center;gap:8px;padding:5px 6px 5px 6px;cursor:pointer}
+.go{display:flex;align-items:center;gap:8px;border:none;background:none;padding:4px 2px;min-height:44px;text-align:left;flex:none}
+.flag{min-width:28px;height:24px;padding:0 6px;border-radius:3px 6px 6px 0;background:var(--flag);color:var(--flag-ink);font-family:var(--num);font-weight:700;font-size:15px;display:inline-flex;align-items:center;justify-content:center}
+.when{display:flex;flex-direction:column;line-height:1.1}
+.stamp{font-family:var(--num);font-weight:600;font-size:17px;font-variant-numeric:tabular-nums}
+.len{font-family:var(--num);font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.name{flex:1;min-width:0;border:none;background:transparent;border-bottom:1px dashed var(--line);border-radius:0;padding:6px 2px;font-size:16px}
+.name::placeholder{color:var(--ink-soft);opacity:.65}
+.name:focus{outline:none;border-bottom:1.5px solid var(--accent)}
+.loopbtn{height:36px;padding:0 10px;border-radius:18px;border:1.5px solid var(--line);background:none;font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px;flex:none}
+.loopbtn svg{width:15px;height:15px;fill:currentColor}
+.loopbtn[aria-pressed="true"]{background:var(--flag);border-color:var(--flag);color:var(--flag-ink)}
+.tools{display:flex;gap:6px;flex-wrap:wrap;padding:2px 8px 10px 44px}
+.tools button{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;min-height:34px;padding:0 10px;font-size:13px;font-weight:600}
+.tools .del{color:var(--danger);margin-left:auto;background:none}
+
+.empty{color:var(--ink-soft);font-size:14px;line-height:1.7;background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:14px 16px;margin:0}
+.empty[hidden]{display:none}
+
+details{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+summary{cursor:pointer;padding:12px 14px;font-size:14px;font-weight:600}
+.io{padding:0 14px 14px}
+.libbox{margin-top:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}
+.chip{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;min-height:32px;padding:0 12px;font-size:13px;font-weight:600}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.plnew{display:flex;gap:6px;padding:0 14px 10px}
+.plnew input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:6px 10px;font-size:16px}
+.plfoot{display:flex;gap:6px;padding:0 14px 10px}
+.relink{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 14px 10px}
+.relink .tm{font-family:var(--num);font-size:12px;color:var(--flag);font-weight:600}
+.track.miss{border-style:dashed}
+.track.miss .tn{opacity:.6}
+.track.miss .tm{color:var(--flag);font-weight:600}
+#lib{list-style:none;margin:0;padding:0 8px 8px;display:flex;flex-direction:column;gap:6px}
+.track{border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.track.cur{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.trow{display:flex;align-items:center;gap:6px;padding:2px 4px 2px 0}
+.track .open{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:none;background:none;text-align:left;padding:8px 10px;min-height:44px}
+.track .tn{font-size:15px;font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track .tm{font-family:var(--num);font-size:12px;color:var(--ink-soft)}
+.track .more{flex:none;border:none;background:none;color:var(--ink-soft);font-size:18px;font-weight:700;min-height:40px;padding:0 12px;border-radius:8px}
+.ptools{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 8px 10px 10px}
+.ptools .lbl{font-size:12px;color:var(--ink-soft)}
+.ptools .rm{border:none;background:none;color:var(--danger);font-size:13px;font-weight:600;min-height:34px;padding:0 8px;margin-left:auto}
+.libnote{font-size:12px;color:var(--ink-soft);margin:0;padding:0 14px 12px;line-height:1.6}
+.libnote.warn{color:var(--danger);font-weight:600}
+.libempty{font-size:13px;color:var(--ink-soft);padding:4px 14px 12px;margin:0}
+.io p{font-size:13px;color:var(--ink-soft);margin:0 0 8px;line-height:1.6}
+.io textarea{width:100%;min-height:150px;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:8px 10px;font-family:var(--num);font-size:16px;line-height:1.5;resize:vertical}
+.iorow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.filebtn{position:relative;overflow:hidden;display:inline-flex;align-items:center}
+.filebtn input{position:absolute;inset:0;opacity:0;width:100%;height:100%}
+.diag{padding:0 14px 10px}
+.diag>summary{font-size:12px;color:var(--ink-soft);cursor:pointer;padding:4px 0}
+.diagbody{font-size:12px;line-height:1.7;color:var(--ink-soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:4px;word-break:break-all}
+.diagbody b{color:var(--ink)}
+.diagbody .bad{color:var(--danger);font-weight:600}
+.diagbody .good{color:var(--accent);font-weight:600}
+.iorow .danger{color:var(--danger);margin-left:auto}
+.keys{font-size:12px;color:var(--ink-soft);margin:14px 2px 0;line-height:1.7;display:none}
+@media (hover:hover) and (pointer:fine){.keys{display:block}}
+kbd{font-family:var(--num);font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface)}
+
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,8px);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:10;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+@media (max-height:700px){
+  #zoom{height:72px}
+  .hint{height:72px}
+  #overview{height:30px}
+}
+@media (max-width:380px){
+  .transport{gap:6px}
+  .tbtn{font-size:12px}
+  .mark{font-size:15px}
+  .loopbtn .t{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="deck">
+    <div class="top">
+      <div class="title">
+        <span id="songName">還沒選歌</span>
+        <small id="songMeta">支援 mp3、m4a、wav 等音檔</small>
+      </div>
+      <label class="file">開啟音檔<input type="file" id="file" multiple accept="audio/*,video/mp4,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus"></label>
+    </div>
+
+    <div class="stage">
+      <canvas id="zoom" aria-label="局部波形，左右拖曳可微調位置"></canvas>
+      <img id="storyImg" alt="故事篇插圖" hidden>
+      <p class="storyNote" id="storyNote" hidden>前奏——播到第一段就會出現圖</p>
+      <canvas id="overview" aria-label="整首波形，點一下跳到該位置"></canvas>
+      <div class="hint" id="hint">開啟一首歌，播放時按「標記」<br>在想重練的地方插旗</div>
+      <span class="storyNum" id="storyNum" hidden></span>
+      <div class="viewsw" id="viewsw" role="group" aria-label="上方顯示方式">
+        <button data-view="wave" aria-pressed="true">音波版</button>
+        <button data-view="story" aria-pressed="false">故事版</button>
+      </div>
+      <div class="zoomctl">
+        <button id="zoomIn" aria-label="放大波形">＋</button>
+        <button id="zoomOut" aria-label="縮小波形">−</button>
+      </div>
+    </div>
+
+    <div class="times">
+      <span id="tNow">0:00.0</span>
+      <button class="looptag" id="loopTag" hidden></button>
+      <span id="tLeft">-0:00.0</span>
+    </div>
+
+    <div class="transport">
+      <button class="tbtn" id="prevM" aria-label="上一個標記" disabled>
+        <svg viewBox="0 0 24 24"><path d="M6 5h2.2v14H6zM19 5v14L9 12z"/></svg>
+      </button>
+      <button class="tbtn" id="back5" aria-label="倒退 5 秒" disabled>
+        <svg viewBox="0 0 24 24"><path d="M12 5V1.5L6.5 6 12 10.5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg><span class="n">5</span>
+      </button>
+      <button class="tbtn play" id="play" aria-label="播放" disabled>
+        <svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="tbtn mark" id="mark" disabled>
+        <svg viewBox="0 0 24 24"><path d="M5 2h2v20H5zM8 3h12l-3.5 4.5L20 12H8z" fill="currentColor"/></svg>標記
+      </button>
+      <button class="tbtn" id="nextM" aria-label="下一個標記" disabled>
+        <svg viewBox="0 0 24 24"><path d="M15.8 5H18v14h-2.2zM5 5v14l10-7z"/></svg>
+      </button>
+    </div>
+
+    <div class="settings">
+      <div class="stepper">
+        <span class="lbl">速度</span>
+        <button id="spdDown" aria-label="放慢">−</button>
+        <output id="spd">1.00×</output>
+        <button id="spdUp" aria-label="加快">＋</button>
+      </div>
+      <div class="stepper vox" id="voxBox">
+        <span class="lbl">人聲</span>
+        <input type="range" id="vox" min="0" max="150" step="10" value="100" aria-label="人聲音量">
+        <button class="pct" id="voxPct" aria-label="人聲回到 100%">100%</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <details id="libBox" class="libbox">
+      <summary>我的曲目 <span class="count" id="libCount"></span></summary>
+      <div class="chips" id="chips"></div>
+      <div class="plnew" id="plNew" hidden>
+        <input id="plName" type="text" maxlength="20" placeholder="清單名稱" enterkeyhint="done" aria-label="清單名稱">
+        <button class="ghost" id="plSave">建立</button>
+        <button class="ghost" id="plCancel">取消</button>
+      </div>
+      <p class="libempty" id="libEmpty">還沒有曲目。按右上角「開啟音檔」加入第一首歌。</p>
+      <ul id="lib"></ul>
+      <div class="relink" id="relinkBox" hidden>
+        <button class="ghost" id="relinkBtn">重新選取音檔（可多選）</button>
+        <span class="tm" id="missCount"></span>
+      </div>
+      <div class="plfoot" id="plFoot" hidden>
+        <button class="ghost" id="plRename">重新命名</button>
+        <button class="ghost danger" id="plDel">刪除清單</button>
+      </div>
+      <p class="libnote warn" id="noSave" hidden>這個開啟方式沒辦法保存曲目：關掉頁面後就會不見。請改用 Safari 或 Chrome 開啟這個網址，iPhone 可以按分享鍵「加入主畫面」，就會記得住。</p>
+      <details id="diag" class="diag">
+        <summary>儲存狀態（曲目會不會被記住）</summary>
+        <div id="diagBody" class="diagbody">檢查中…</div>
+      </details>
+      <p class="libnote">音檔和標記都只存在這台手機的瀏覽器，不會上傳。按曲目右邊的「⋯」可以放進播放清單或移除。換手機或清掉瀏覽器資料前，請先用下方「匯出」備份：匯入後曲目和清單會整個回來，只要再選一次同名音檔（可一次多選）就接得回去。</p>
+    </details>
+
+    <div class="listhead">
+      <h2>段落<span class="count"><span id="count">0</span> / 60</span><span class="sync" id="sync"></span></h2>
+      <button class="ghost" id="loopCur" disabled aria-label="AB 循環目前段落">AB 循環</button>
+    </div>
+    <p class="empty" id="empty">還沒有標記。播放時按下「標記」，每個標記就是一段的開頭；點段落會從那裡開始唱，按「循環」會一直重播到下一個標記。</p>
+    <ol id="list"></ol>
+
+    <details id="io">
+      <summary>匯出／匯入標記</summary>
+      <div class="io">
+        <p>「# 歌名」下面每行一個標記，格式像「1:23.45 副歌」，「@清單名：歌名、歌名」是播放清單。複製到備忘錄就是完整備份；換裝置時貼回來匯入，曲目、標記、清單都會回來，再選一次同名音檔即可。</p>
+        <textarea id="ioText" spellcheck="false" aria-label="標記文字"></textarea>
+        <div class="iorow">
+          <button class="ghost" id="dlBtn">下載備份檔</button>
+          <label class="ghost filebtn">讀取備份檔<input type="file" id="bakFile" accept=".txt,.md,text/plain"></label>
+        </div>
+        <div class="iorow">
+          <button class="ghost" id="copyBtn">複製</button>
+          <button class="ghost" id="importBtn">用這些取代目前標記</button>
+          <button class="ghost" id="resetBtn" hidden>還原成分享版標記</button>
+          <button class="ghost" id="restoreLocal" hidden>取回我先前的標記</button>
+        </div>
+        <div class="iorow">
+          <button class="ghost" id="allBack">全部往前 0.1 秒</button>
+          <button class="ghost" id="allFwd">全部往後 0.1 秒</button>
+          <button class="ghost danger" id="clearBtn">清除全部標記</button>
+        </div>
+      </div>
+    </details>
+
+    <p class="keys">快捷鍵：<kbd>空白</kbd> 播放／暫停　<kbd>M</kbd> 標記　<kbd>←</kbd><kbd>→</kbd> 上／下一個標記　<kbd>L</kbd> AB 循環　<kbd>B</kbd> 倒退 5 秒</p>
+  </main>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script id="song-data">window.__SONG__ = null; window.__STEMS__ = null; window.__STORY__ = null; window.__MARKERS__ = null;</script>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const MAX = 60, RATE = 200;
+const WINS = [3, 5, 8, 12, 20, 30, 45];
+const GAPS = [0, 0.5, 1, 1.5, 2, 3];
+const ICON = {
+  play: '<path d="M8 5v14l11-7z"/>',
+  pause: '<path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/>',
+  loop: '<svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2z"/></svg>'
+};
+const S = { name:'', key:'', dur:0, peaks:null, markers:[], nextId:1, loop:null, sel:null, anchor:null,
+  speed:1, pre:0, gap:1.5, win:8, gen:0, gapUntil:0, fading:false, rev:'', vox:1, lastTap:0, viewT:0, viewUntil:0, lastT:-1, lastNow:undefined };
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const round2 = x => Math.round(x * 100) / 100;
+const fmt = (t, dec = 1) => {
+  if (!isFinite(t) || t < 0) t = 0;
+  const f = Math.pow(10, dec), d = Math.round(t * f);
+  const m = Math.floor(d / (60 * f)), s = (d - m * 60 * f) / f;
+  return m + ':' + (s < 10 ? '0' : '') + s.toFixed(dec);
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let toastTimer;
+function toast(msg){
+  const el = $('#toast'); el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 1700);
+}
+
+/* ---------- storage ---------- */
+const LS = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+function stateBody(){
+  return { name:S.name, markers:S.markers.map(m => ({ id:m.id, t:m.t, name:m.name })),
+    nextId:S.nextId, speed:S.speed, pre:S.pre, gap:S.gap, win:S.win, rev:S.rev, vox:S.vox, updatedAt:Date.now() };
+}
+function save(){
+  if (!S.key) return;
+  S.touched = true;
+  LS.set(S.key, stateBody());
+  clearTimeout(cloudTimer); cloudTimer = setTimeout(cloudSave, 500);
+}
+
+/* cloud (artifact db) */
+let dbApi = null, dbKnown = false, cloudTimer, cloudBusy = false, cloudPending = false;
+function hashKey(str){
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return 's-' + (h >>> 0).toString(36);
+}
+function sharedLabel(){
+  const r = window.__MARKERS__ && window.__MARKERS__.rev;
+  const d = r && /^\d{4}-\d{2}-\d{2}/.test(r) ? r.slice(5, 10).replace('-', '/') : '';
+  return '分享版標記' + (d ? '（' + d + ' 更新）' : '');
+}
+function setSync(st){
+  const el = $('#sync'); if (!el) return;
+  const map = {
+    shared:[sharedLabel(), 'ok'],
+    local:['標記存在這台手機，記得不定期匯出備份', ''],
+    idle:['標記會自動存到雲端', ''],
+    saving:['儲存中…', ''],
+    saved:['已存到雲端，重開也還在', 'ok'],
+    error:['雲端儲存失敗，稍後再改一次標記會重試', 'bad']
+  };
+  const [txt, cls] = map[st] || ['', ''];
+  el.textContent = S.name ? txt : '';
+  el.className = 'sync ' + cls;
+}
+function cloudSave(){
+  if (!dbApi || !S.key) return;
+  if (cloudBusy){ cloudPending = true; return; }
+  cloudBusy = true; setSync('saving');
+  dbApi.doc('songs/' + hashKey(S.key)).set(stateBody())
+    .then(() => setSync('saved'))
+    .catch(() => setSync('error'))
+    .finally(() => { cloudBusy = false; if (cloudPending){ cloudPending = false; cloudSave(); } });
+}
+async function cloudLoad(gen){
+  if (!dbApi || !S.key) return;
+  try {
+    const snap = await dbApi.doc('songs/' + hashKey(S.key)).get();
+    if (gen !== S.gen) return;
+    if (snap.exists && !S.touched){
+      applySaved(snap.data() || {});
+      LS.set(S.key, stateBody());
+      applySpeed(); showPre(); showGap(); renderList(); dirty();
+      setSync('saved');
+    } else if (S.touched || S.markers.length){
+      cloudSave();
+    } else setSync('idle');
+  } catch(e){ if (gen === S.gen) setSync('error'); }
+}
+function initCloud(){
+  const c = window.claude;
+  const p = (c && typeof c.use === 'function') ? c.use('db') : Promise.resolve(null);
+  Promise.resolve(p).catch(() => null).then(d => {
+    dbApi = d || null; dbKnown = true;
+    if (!S.name) return;
+    if (dbApi) cloudLoad(S.gen); else updateSync();
+  });
+}
+let saveTimer; function saveSoon(){ clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); }
+
+function idb(){
+  return new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('no idb'));
+    const r = indexedDB.open('song-practice', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('files');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbReq(mode, fn){
+  return idb().then(db => new Promise((res, rej) => {
+    const tx = db.transaction('files', mode), st = tx.objectStore('files');
+    let out; const q = fn(st); if (q) q.onsuccess = () => { out = q.result; };
+    tx.oncomplete = () => res(out);
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error || new Error('abort'));
+  }));
+}
+async function audioPut(key, blob){
+  const buf = await new Response(blob).arrayBuffer();
+  await idbReq('readwrite', st => st.put({ buf, name: blob.name || '', type: blob.type }, key));
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e){}
+}
+function audioGet(key){ return idbReq('readonly', st => st.get(key)).catch(() => null); }
+function audioCount(){ return idbReq('readonly', st => st.count()).catch(() => null); }
+function audioDel(key){ return idbReq('readwrite', st => st.delete(key)).catch(() => null); }
+
+/* ---------- 曲目與播放清單 ---------- */
+const LIBK = 'lib:v1', PLK = 'pl:v1';
+let curPl = '', openTrack = '';
+try { curPl = localStorage.getItem('plCur') || ''; } catch(e){}
+function libAll(){ const l = LS.get(LIBK); return Array.isArray(l) ? l.filter(r => r && r.key && r.name) : []; }
+function libSave(l){ LS.set(LIBK, l); }
+function songKey(name, size){ return 'practice:' + name + ':' + size; }
+function libUpsert(rec){
+  const l = libAll(), i = l.findIndex(r => r.key === rec.key);
+  if (i >= 0) l[i] = Object.assign(l[i], rec); else l.push(rec);
+  libSave(l); renderLib();
+}
+function libRemove(key){
+  libSave(libAll().filter(r => r.key !== key));
+  plSave(plAll().map(p => ({ ...p, keys: p.keys.filter(k => k !== key) })));
+  renderLib();
+}
+function plAll(){ const l = LS.get(PLK); return Array.isArray(l) ? l.filter(p => p && p.id && p.name) : []; }
+function plSave(l){ LS.set(PLK, l); }
+function plById(id){ return plAll().find(p => p.id === id) || null; }
+function plCreate(name){
+  name = String(name || '').trim().slice(0, 20);
+  if (!name) return null;
+  const l = plAll();
+  if (l.some(p => p.name === name)){ toast('已經有同名的清單'); return l.find(p => p.name === name).id; }
+  const id = 'p' + Date.now().toString(36);
+  l.push({ id, name, keys: [] }); plSave(l);
+  return id;
+}
+function plToggle(id, key){
+  const l = plAll(), p = l.find(x => x.id === id); if (!p) return;
+  p.keys = p.keys.includes(key) ? p.keys.filter(k => k !== key) : p.keys.concat([key]);
+  plSave(l); renderLib();
+}
+function setPl(id){
+  curPl = id || '';
+  try { localStorage.setItem('plCur', curPl); } catch(e){}
+  openTrack = ''; renderLib();
+}
+function fmtDay(ms){ const d = new Date(ms); return (d.getMonth() + 1) + '/' + d.getDate(); }
+function renderChips(){
+  const pls = plAll();
+  $('#chips').innerHTML =
+    '<button class="chip" data-pl="" aria-pressed="' + (curPl === '') + '">全部</button>' +
+    pls.map(p => '<button class="chip" data-pl="' + esc(p.id) + '" aria-pressed="' + (curPl === p.id) + '">' +
+      esc(p.name) + ' <span class="tm">' + p.keys.length + '</span></button>').join('') +
+    '<button class="chip" data-pl="+" aria-pressed="false">＋ 新增清單</button>';
+  $('#plFoot').hidden = !curPl || !plById(curPl);
+}
+function renderLib(){
+  renderChips();
+  const pl = curPl ? plById(curPl) : null;
+  if (curPl && !pl){ curPl = ''; }
+  let l = libAll().sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+  const all = l.length;
+  if (pl) l = l.filter(r => pl.keys.includes(r.key));
+  $('#libCount').textContent = all ? (pl ? l.length + ' / ' + all + ' 首' : all + ' 首') : '';
+  $('#libEmpty').hidden = l.length > 0;
+  $('#libEmpty').textContent = all === 0
+    ? '還沒有曲目。按右上角「開啟音檔」加入第一首歌。'
+    : (pl ? '這個清單還沒有歌。切到「全部」，按曲目右邊的「⋯」把歌加進來。' : '');
+  const pls = plAll();
+  const miss = libAll().filter(r => (r.missing || r.stored === false) && !r.url).length;
+  $('#relinkBox').hidden = !miss;
+  $('#missCount').textContent = miss ? miss + ' 首待連結音檔' : '';
+  $('#lib').innerHTML = l.map(r => {
+    const sv = LS.get(r.key), n = sv && Array.isArray(sv.markers) ? sv.markers.length : 0;
+    const lost = (r.missing || r.stored === false) && !r.url;
+    const dl = r.url && r.stored === false;
+    const meta = [r.dur ? fmt(r.dur, 0) : '', n + ' 個標記', r.lastAt ? '最後練習 ' + fmtDay(r.lastAt) : '',
+                  lost ? '待連結音檔' : (dl ? '共用曲目・點一下下載' : '')]
+      .filter(Boolean).join('　');
+    const open = openTrack === r.key;
+    return '<li class="track' + (r.key === S.key ? ' cur' : '') + (lost ? ' miss' : '') + '" data-key="' + esc(r.key) + '">' +
+      '<div class="trow">' +
+        '<button class="open" data-act="open"><span class="tn">' + esc(r.name.replace(/\.[^.]+$/, '')) + '</span>' +
+        '<span class="tm">' + esc(meta) + '</span></button>' +
+        '<button class="more" data-act="more" aria-label="更多">⋯</button>' +
+      '</div>' +
+      (open ? '<div class="ptools"><span class="lbl">加入清單</span>' +
+        pls.map(p => '<button class="chip" data-act="toggle" data-pl="' + esc(p.id) + '" aria-pressed="' +
+          p.keys.includes(r.key) + '">' + esc(p.name) + (p.keys.includes(r.key) ? ' ✓' : '') + '</button>').join('') +
+        '<button class="chip" data-act="newpl">＋ 新清單</button>' +
+        '<button class="rm" data-act="rm">移除曲目</button></div>' : '') +
+    '</li>';
+  }).join('');
+  if (!ioLock && $('#io').open && document.activeElement !== $('#ioText')) $('#ioText').value = exportText();
+}
+async function openFromLib(key){
+  const rec = libAll().find(r => r.key === key);
+  if (!rec) return false;
+  const f = await audioGet(key);
+  if (f && f.buf){
+    libUpsert({ key, lastAt: Date.now() });
+    openBlob(new Blob([f.buf], { type: f.type || guessType(rec.name) }), rec.name, true, null, key);
+    return true;
+  }
+  if (rec.url){                                   // 網站上的共用曲目：直接下載
+    toast('下載中…');
+    try {
+      const r = await fetch(rec.url);
+      if (!r.ok) throw new Error('http ' + r.status);
+      const blob = await r.blob();
+      libUpsert({ key, lastAt: Date.now(), stored: true, missing: false, size: blob.size });
+      openBlob(blob, rec.name, true, null, key);
+      audioPut(key, blob).catch(() => libUpsert({ key, stored:false }));
+      return true;
+    } catch(e){ toast('下載不到這首的音檔，請確認網路或檔案位置'); return false; }
+  }
+  libUpsert({ key, stored:false });
+  toast('這首的音檔不在這台手機上，請按「重新選取音檔」再選一次');
+  return false;
+}
+/* 網站上的共用曲目：同一層放 songs.json 就會自動出現在曲目清單 */
+async function loadRemote(){
+  let j;
+  try {
+    const r = await fetch('songs.json', { cache: 'no-cache' });
+    if (!r.ok) return;
+    j = await r.json();
+  } catch(e){ return; }
+  const list = Array.isArray(j) ? j : (j && Array.isArray(j.songs) ? j.songs : []);
+  let n = 0;
+  for (const s of list){
+    if (!s || !s.url) continue;
+    const name = s.name || decodeURIComponent(String(s.url).split('/').pop());
+    const key = 'remote:' + (s.id || name);
+    const old = libAll().find(r => r.key === key);
+    libUpsert({ key, name, url: s.url, remote: true, missing: false,
+                stored: old ? old.stored !== false : false,
+                addedAt: (old && old.addedAt) || Date.now() });
+    const rev = typeof s.rev === 'string' ? s.rev : '';
+    const sv = LS.get(key);
+    if (s.markers && (!sv || (sv.rev || '') !== rev)){
+      const ms = parseSongMarkers(s.markers);
+      if (ms.length){
+        if (sv) LS.set(key + ':backup', sv);
+        LS.set(key, Object.assign({}, sv || {}, { markers: ms, nextId: ms.length + 1, rev }));
+      }
+    }
+    n++;
+  }
+  if (n) renderLib();
+}
+function parseSongMarkers(src){
+  const out = [];
+  for (const m of (Array.isArray(src) ? src : [])){
+    if (typeof m === 'string'){
+      const mm = m.match(/^\s*(\d+):(\d{1,2}(?:\.\d+)?)\s*(.*)$/);
+      if (mm) out.push({ t: round2(+mm[1] * 60 + +mm[2]), name: mm[3].trim().slice(0, 40) });
+    } else if (m && isFinite(+m.t)){
+      out.push({ t: round2(+m.t), name: String(m.name || '').slice(0, 40) });
+    }
+  }
+  out.sort((a, b) => a.t - b.t);
+  return out.slice(0, MAX).map((m, i) => ({ id: i + 1, t: m.t, name: m.name }));
+}
+let rmArmed = { key:'', at:0 }, plAskFor = '';
+$('#lib').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const key = b.closest('.track').dataset.key, act = b.dataset.act;
+  if (act === 'open'){
+    if (key === S.key){ toast('正在練這首'); return; }
+    const rec = libAll().find(r => r.key === key);
+    if (rec && !rec.url && (rec.missing || rec.stored === false)){
+      toast('請選「' + rec.name + '」這個音檔，標記會自動接回來');
+      $('#file').click();
+      return;
+    }
+    openFromLib(key);
+  } else if (act === 'more'){
+    openTrack = openTrack === key ? '' : key; renderLib();
+  } else if (act === 'toggle'){
+    plToggle(b.dataset.pl, key);
+  } else if (act === 'newpl'){
+    plAskFor = key; showPlNew(true);
+  } else if (act === 'rm'){
+    if (rmArmed.key !== key || Date.now() - rmArmed.at > 3000){
+      rmArmed = { key, at: Date.now() };
+      b.textContent = '再按一次確定';
+      setTimeout(() => { if (b.isConnected) b.textContent = '移除曲目'; }, 3000);
+      return;
+    }
+    rmArmed = { key:'', at:0 }; openTrack = '';
+    audioDel(key); libRemove(key);
+    toast('已移除，標記仍保留');
+  }
+});
+function showPlNew(on, value){
+  $('#plNew').hidden = !on;
+  if (on){ $('#plName').value = value || ''; $('#plName').focus(); }
+  else plAskFor = '';
+}
+$('#chips').addEventListener('click', e => {
+  const b = e.target.closest('[data-pl]'); if (!b) return;
+  if (b.dataset.pl === '+'){ plAskFor = ''; showPlNew(true); return; }
+  showPlNew(false); setPl(b.dataset.pl);
+});
+$('#plSave').addEventListener('click', () => {
+  const name = $('#plName').value.trim();
+  if (!name){ toast('請先輸入清單名稱'); return; }
+  const renaming = $('#plSave').dataset.mode === 'rename';
+  if (renaming){
+    const l = plAll(), p = l.find(x => x.id === curPl);
+    if (p){ p.name = name.slice(0, 20); plSave(l); toast('清單已改名'); }
+    $('#plSave').dataset.mode = ''; $('#plSave').textContent = '建立';
+  } else {
+    const id = plCreate(name);
+    if (id && plAskFor){ plToggle(id, plAskFor); toast('已加入「' + name + '」'); }
+    else if (id) toast('已建立「' + name + '」');
+  }
+  showPlNew(false); renderLib();
+});
+$('#plCancel').addEventListener('click', () => { $('#plSave').dataset.mode = ''; $('#plSave').textContent = '建立'; showPlNew(false); });
+$('#plName').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); $('#plSave').click(); } });
+$('#plRename').addEventListener('click', () => {
+  const p = plById(curPl); if (!p) return;
+  $('#plSave').dataset.mode = 'rename'; $('#plSave').textContent = '儲存';
+  showPlNew(true, p.name);
+});
+let plDelArmed = 0;
+$('#plDel').addEventListener('click', () => {
+  const p = plById(curPl); if (!p) return;
+  if (Date.now() - plDelArmed > 3000){
+    plDelArmed = Date.now(); $('#plDel').textContent = '再按一次刪除';
+    setTimeout(() => { $('#plDel').textContent = '刪除清單'; }, 3000);
+    return;
+  }
+  plDelArmed = 0; $('#plDel').textContent = '刪除清單';
+  plSave(plAll().filter(x => x.id !== p.id));
+  toast('已刪除清單「' + p.name + '」，歌曲都還在');
+  setPl('');
+});
+
+/* ---------- audio ---------- */
+const audio = document.createElement('audio');
+audio.preload = 'auto';
+audio.setAttribute('playsinline', '');
+audio.hidden = true;
+document.body.appendChild(audio);
+let stem = false, stemsOK = false, stemBufs = null;   // accompaniment + vocal stems, same timeline as the full mix
+function b64blob(o){ const bin = atob(o.data), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new Blob([u8], { type: o.type }); }
+function decodeAt(blob, rates){
+  rates = rates || [16000, 22050, 44100];
+  const C = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!C) return Promise.reject(new Error('no web audio'));
+  return new Response(blob).arrayBuffer().then(ab => {
+    const tryRate = k => new Promise((res, rej) => {
+      let ctx; try { ctx = new C(1, rates[k], rates[k]); } catch(e){ return rej(e); }
+      let done = false;
+      const ok = b => { if (!done){ done = true; res(b); } }, bad = e => { if (!done){ done = true; rej(e); } };
+      const pr = ctx.decodeAudioData(ab.slice(0), ok, bad); if (pr && pr.then) pr.then(ok, bad);
+    }).catch(e => k + 1 < rates.length ? tryRate(k + 1) : Promise.reject(e));
+    return tryRate(0);
+  });
+}
+setTimeout(function loadStems(){
+  const ST = window.__STEMS__;
+  if (!ST || !ST.bg || !ST.vox) return;
+  Promise.all([decodeAt(b64blob(ST.bg)), decodeAt(b64blob(ST.vox))]).then(([bB, bV]) => {
+    stemBufs = { bB, bV }; stemsOK = true; voxUI();
+    if (fx){ applyVox(); applyMode(); }
+  }).catch(() => { stemsOK = false; voxUI(); });
+}, 0);
+const AC = window.AudioContext || window.webkitAudioContext;
+function mediaSession(){
+  try { if (navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; } catch(e){}
+}
+mediaSession();
+const P = {
+  wa:false, ctx:null, buf:null, src:null, t0:0, off:0, playing:false,
+  get currentTime(){
+    if (!this.wa) return stem ? SE.currentTime : audio.currentTime;
+    if (!this.playing || !this.buf) return this.off;
+    return Math.min(this.buf.duration, this.off + (this.ctx.currentTime - this.t0) * S.speed);
+  },
+  set currentTime(t){
+    if (!this.wa){ if (stem) SE.seek(t); else audio.currentTime = t; return; }
+    this.off = clamp(t, 0, this.buf ? this.buf.duration : 0);
+    if (this.playing){ this._stop(); this._start(); }
+    dirty();
+  },
+  get paused(){ return this.wa ? !this.playing : (stem ? !SE.playing : audio.paused); },
+  play(){
+    if (!this.wa) return stem ? SE.play() : audio.play();
+    if (!this.buf || !AC) return Promise.reject(new Error('not ready'));
+    if (!this.ctx) this.ctx = new AC();
+    if (this.ctx.resume) this.ctx.resume();
+    if (this.playing) return Promise.resolve();
+    if (this.off >= this.buf.duration - 0.05) this.off = 0;
+    this._start(); this.playing = true; onPlay();
+    return Promise.resolve();
+  },
+  pause(){
+    if (!this.wa){ audio.pause(); SE.pause(); return; }
+    if (!this.playing) return;
+    this.off = this.currentTime; this._stop(); this.playing = false; onPause();
+  },
+  setRate(){
+    if (!this.wa && stem) SE.setRate();
+    if (this.wa && this.playing){ this.off = this.currentTime; this._stop(); this._start(); }
+  },
+  reset(){ this._stop(); this.wa = false; this.playing = false; this.off = 0; this.buf = null; },
+  _start(){
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.buf;
+    src.playbackRate.value = S.speed;
+    src.connect(this.ctx.destination);
+    src.onended = () => {
+      if (this.src !== src) return;
+      this.src = null; this.playing = false; this.off = this.buf.duration;
+      onPause(); onEnded();
+    };
+    this.t0 = this.ctx.currentTime;
+    src.start(0, this.off);
+    this.src = src;
+  },
+  _stop(){
+    const src = this.src; this.src = null;
+    if (src){ src.onended = null; try { src.stop(); } catch(e){} }
+  }
+};
+function unlockAudio(){ if (!fx && !fxBroken) ensureFx().then(f => { if (f){ applyVox(); applyMode(); voxUI(); } }); }
+document.addEventListener('click', unlockAudio, true);
+document.addEventListener('touchend', unlockAudio, true);
+/* loop tail fade: iOS ignores audio.volume, so the fade runs through a Web Audio gain node */
+const TAIL = 0.3;
+const loopEnd = 'fade';
+let fx = null, fxBroken = false, fxCtx = null, fxBusy = null;
+function applyVox(){
+  if (fx && fx.gV) try { fx.gV.gain.setTargetAtTime(S.vox, fx.ctx.currentTime, 0.03); } catch(e){ fx.gV.gain.value = S.vox; }
+}
+function voxUI(){
+  if (!window.__STEMS__){ $('#voxBox').hidden = true; return; }
+  const ok = stemsOK && !P.wa && !fxBroken;
+  $('#voxBox').classList.toggle('off', !ok);
+  $('#vox').disabled = !ok; $('#voxPct').disabled = !ok;
+  $('#vox').value = Math.round(S.vox * 100);
+  $('#voxPct').textContent = Math.round(S.vox * 100) + '%';
+  $('#voxBox').title = ok ? '' : (fxBroken ? '這台裝置無法調整人聲' : '人聲分軌載入中…');
+}
+function metaText(){
+  if (P.wa || S.decodeFailed) return;
+  $('#songMeta').textContent = '長度 ' + fmt(S.dur, 0) + (stem ? '　人聲 ' + Math.round(S.vox * 100) + '%' + (Math.abs(S.speed - 1) > 0.001 ? '（分軌變速會變調）' : '（分軌）') : '');
+}
+function applyMode(){
+  const want = stemsOK && !P.wa && !!(fx && fx.gV) && Math.abs(S.vox - 1) > 0.001;
+  if (want === stem){ metaText(); return; }
+  const t = P.currentTime, playing = !P.paused;
+  if (stem) SE.pause(); else audio.pause();
+  stem = want;
+  if (stem){ SE.off = clamp(t, 0, stemDur()); if (playing) SE.play().catch(() => {}); }
+  else { try { audio.currentTime = t; } catch(e){} if (playing) audio.play().catch(() => {}); }
+  metaText();
+}
+function setVox(v){
+  S.vox = clamp(v, 0, 1.5);
+  voxUI(); saveSoon();
+  if (fx && fx.gV){ applyVox(); applyMode(); }
+  else ensureFx().then(() => { applyVox(); applyMode(); voxUI(); });
+}
+function ensureFx(){
+  if (fx || fxBroken || !AC || P.wa) return Promise.resolve(fx);
+  if (fxBusy) return fxBusy;
+  mediaSession();
+  try { fxCtx = fxCtx || new AC(); } catch(e){ fxBroken = true; return Promise.resolve(null); }
+  let r; try { r = fxCtx.state === 'running' ? null : (fxCtx.resume && fxCtx.resume()); } catch(e){ r = null; }   // must run inside the tap
+  fxBusy = Promise.resolve(r).catch(() => {}).then(() => {
+    fxBusy = null;
+    if (fxCtx.state !== 'running') return null;                  // not unlocked yet: try again on the next tap
+    try {
+      const ctx = fxCtx, gain = ctx.createGain();
+      ctx.createMediaElementSource(audio).connect(gain); gain.connect(ctx.destination);
+      const lim = ctx.createDynamicsCompressor();
+      lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.12;
+      const gB = ctx.createGain(), gV = ctx.createGain();
+      gB.connect(lim); gV.connect(lim); lim.connect(gain);
+      gV.gain.value = S.vox;
+      fx = { ctx, gain, gB, gV };
+    } catch(e){ fxBroken = true; fx = null; }
+    return fx;
+  });
+  return fxBusy;
+}
+/* stem player: both stems start on the same audio clock, so they never drift */
+function stemDur(){ return stemBufs ? stemBufs.bB.duration : 0; }
+const SE = {
+  playing:false, off:0, t0:0, srcs:null,
+  get currentTime(){
+    if (!this.playing || !fx) return this.off;
+    return Math.min(stemDur(), this.off + Math.max(0, fx.ctx.currentTime - this.t0) * S.speed);
+  },
+  seek(t){ this.off = clamp(t, 0, stemDur()); if (this.playing){ this._stop(); this._start(); } dirty(); },
+  play(){
+    if (!fx || !stemBufs) return Promise.reject(new Error('stems not ready'));
+    if (this.playing) return Promise.resolve();
+    if (this.off >= stemDur() - 0.05) this.off = 0;
+    this._start(); this.playing = true; onPlay();
+    return Promise.resolve();
+  },
+  pause(){ if (!this.playing) return; this.off = this.currentTime; this._stop(); this.playing = false; onPause(); },
+  setRate(){ if (this.playing){ this.off = this.currentTime; this._stop(); this._start(); } },
+  _start(){
+    const ctx = fx.ctx, when = ctx.currentTime + 0.03;
+    const mk = (buf, g) => { const n = ctx.createBufferSource(); n.buffer = buf; n.playbackRate.value = S.speed; n.connect(g); n.start(when, this.off); return n; };
+    const a = mk(stemBufs.bB, fx.gB), b = mk(stemBufs.bV, fx.gV);
+    a.onended = () => { if (!this.srcs || this.srcs[0] !== a) return; this.srcs = null; this.playing = false; this.off = stemDur(); onPause(); onEnded(); };
+    this.t0 = when; this.srcs = [a, b];
+  },
+  _stop(){ const n = this.srcs; this.srcs = null; if (n) n.forEach(x => { x.onended = null; try { x.stop(); } catch(e){} }); }
+};
+function fadeOut(sec){
+  if (!fx) return;
+  try {
+    const g = fx.gain.gain, now = fx.ctx.currentTime;
+    g.cancelScheduledValues(now); g.setValueAtTime(g.value, now);
+    g.linearRampToValueAtTime(0.0001, now + Math.max(0.05, sec));
+  } catch(e){}
+}
+function fadeIn(delay){
+  S.fading = false;
+  if (!fx) return;
+  try {
+    const g = fx.gain.gain, now = fx.ctx.currentTime, d = delay == null ? 0.04 : delay;
+    g.cancelScheduledValues(now); g.setValueAtTime(0.0001, now);
+    g.setValueAtTime(0.0001, now + d);
+    g.linearRampToValueAtTime(1, now + d + 0.08);
+  } catch(e){}
+}
+function fadeReset(){
+  S.fading = false;
+  if (!fx) return;
+  try {
+    const g = fx.gain.gain, now = fx.ctx.currentTime;
+    g.cancelScheduledValues(now); g.setValueAtTime(1, now);
+  } catch(e){}
+}
+function useFallback(){
+  if (P.wa) return;
+  const t = audio.currentTime || 0;
+  try { audio.pause(); } catch(e){}
+  P.wa = true; P.off = t;
+  $('#songMeta').textContent = P.buf
+    ? '已改用備用播放方式（調速度時音高會跟著變）'
+    : (S.decodeFailed ? '這個檔案在這裡無法播放，請改用瀏覽器開啟' : '正在準備備用播放方式…');
+}
+function lockPitch(){ audio.preservesPitch = true; audio.webkitPreservesPitch = true; audio.mozPreservesPitch = true; }
+lockPitch();
+
+let objUrl = null, curBlob = null, triedData = false;
+function setSrc(blob){
+  if (objUrl) URL.revokeObjectURL(objUrl);
+  curBlob = blob; triedData = false;
+  objUrl = URL.createObjectURL(blob);
+  audio.src = objUrl; audio.load();
+}
+audio.addEventListener('error', () => {
+  if (!curBlob) return;
+  if (!triedData){
+    triedData = true;
+    const fr = new FileReader();
+    fr.onload = () => { audio.src = fr.result; audio.load(); };
+    fr.readAsDataURL(curBlob);
+  } else {
+    useFallback();
+  }
+});
+
+function guessType(name){
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  return ({ mp3:'audio/mpeg', m4a:'audio/mp4', mp4:'audio/mp4', aac:'audio/aac', wav:'audio/wav',
+    flac:'audio/flac', ogg:'audio/ogg', opus:'audio/ogg' })[ext] || '';
+}
+
+function decode(blob){
+  return new Response(blob).arrayBuffer().then(ab => new Promise((res, rej) => {
+    const C = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!C) return rej(new Error('no web audio'));
+    const ctx = new C(1, 44100, 44100);
+    let done = false;
+    const ok = b => { if (!done){ done = true; res(b); } };
+    const bad = e => { if (!done){ done = true; rej(e); } };
+    const p = ctx.decodeAudioData(ab, ok, bad);
+    if (p && p.then) p.then(ok, bad);
+  }));
+}
+function computePeaks(buf){
+  const a = buf.getChannelData(0), b = buf.numberOfChannels > 1 ? buf.getChannelData(1) : null;
+  const n = Math.max(1, Math.ceil(buf.duration * RATE)), size = buf.length / n;
+  const P = new Float32Array(n); let top = 0;
+  for (let i = 0; i < n; i++){
+    const s = Math.floor(i * size), e = Math.min(buf.length, Math.floor((i + 1) * size));
+    let mx = 0;
+    for (let j = s; j < e; j += 2){
+      let v = a[j]; if (v < 0) v = -v;
+      if (b){ let w = b[j]; if (w < 0) w = -w; if (w > v) v = w; }
+      if (v > mx) mx = v;
+    }
+    P[i] = mx; if (mx > top) top = mx;
+  }
+  if (top > 0) for (let i = 0; i < n; i++) P[i] = Math.pow(P[i] / top, 0.8);
+  return P;
+}
+
+async function openBlob(blob, name, fromCache, defaults, forceKey){
+  const gen = ++S.gen;
+  P.pause(); P.reset(); setPlayIcon(false); S.decodeFailed = false;
+  S.name = name;
+  S.key = forceKey || ('practice:' + name + ':' + blob.size);
+  S.touched = false;
+  let saved = LS.get(S.key);
+  if (!saved){
+    const pend = LS.get('pending:' + name);
+    if (pend){ saved = pend; LS.set(S.key, pend); try { localStorage.removeItem('pending:' + name); } catch(e){} }
+  }
+  const bakedRev = defaults && typeof defaults.rev === 'string' ? defaults.rev : '';
+  let useShared = false;
+  if (defaults && (!saved || (typeof saved.rev === 'string' ? saved.rev : '') !== bakedRev)){
+    useShared = true;
+    if (saved) LS.set(S.key + ':backup', saved);
+  }
+  applySaved(useShared ? defaults : (saved || {}));
+  if (defaults) S.rev = bakedRev;
+  if (useShared) LS.set(S.key, stateBody());
+  $('#restoreLocal').hidden = !LS.get(S.key + ':backup');
+  S.loop = null; S.sel = null; S.anchor = null; S.peaks = null; S.dur = 0;
+  sortM();
+  $('#songName').textContent = name.replace(/\.[^.]+$/, '');
+  $('#songMeta').textContent = '讀取中…';
+  renderLib();
+  $('#hint').hidden = true;
+  setSync(dbKnown ? (dbApi ? 'idle' : 'local') : 'idle');
+  if (dbApi) cloudLoad(gen);
+  setReady();
+  setSrc(blob);
+  applySpeed(); showPre(); showGap(); renderList(); buildOverview(); dirty();
+  voxUI(); if (fx && fx.gV){ applyVox(); applyMode(); }
+  try {
+    const buf = await decode(blob);
+    if (gen !== S.gen) return;
+    S.peaks = computePeaks(buf);
+    P.buf = buf;
+    if (P.wa) $('#songMeta').textContent = '已改用備用播放方式（調速度時音高會跟著變）';
+    if (!S.dur){ S.dur = buf.duration; setReady(); renderList(); }
+    buildOverview(); dirty();
+  } catch(e){
+    if (gen !== S.gen) return;
+    S.decodeFailed = true;
+    $('#songMeta').textContent = P.wa ? '這個檔案在這裡無法播放，請改用瀏覽器開啟' : '無法畫出波形，但仍可播放與標記';
+  }
+}
+function applySaved(sv){
+  S.markers = Array.isArray(sv.markers)
+    ? sv.markers.filter(m => m && isFinite(m.t) && isFinite(m.id)).map(m => ({ id:m.id, t:m.t, name:String(m.name || '') }))
+    : [];
+  S.nextId = Math.max(sv.nextId || 1, 1, ...S.markers.map(m => m.id + 1));
+  S.speed = clamp(+sv.speed || 1, 0.5, 1.5);
+  S.pre = clamp(+sv.pre || 0, 0, 5);
+  S.gap = 1.5;
+  S.vox = (sv.vox !== undefined && isFinite(+sv.vox)) ? clamp(+sv.vox, 0, 1.5) : 1;
+  S.rev = typeof sv.rev === 'string' ? sv.rev : '';
+  S.win = WINS.includes(sv.win) ? sv.win : 8;
+  S.loop = null; S.sel = null; S.anchor = null;
+  sortM();
+}
+
+audio.addEventListener('loadedmetadata', () => {
+  if (isFinite(audio.duration) && audio.duration > 0) S.dur = audio.duration;
+  if (!P.wa) metaText();
+  if (S.key && libAll().some(r => r.key === S.key)) libUpsert({ key: S.key, dur: S.dur });
+  applySpeed(); setReady(); renderList(); buildOverview(); dirty();
+});
+function onPlay(){ setPlayIcon(true); }
+function onPause(){ setPlayIcon(false); }
+audio.addEventListener('play', () => { if (!P.wa && !stem){ onPlay(); } });
+audio.addEventListener('pause', () => { if (!P.wa && !stem) onPause(); });
+audio.addEventListener('ended', () => { if (!P.wa && !stem) onEnded(); });
+
+function onEnded(){
+  if (S.loop != null){
+    const b = bounds(S.loop);
+    if (b){ P.currentTime = Math.max(0, b[0] - S.pre); fadeIn(0.04); P.play().catch(() => {}); }
+    return;
+  }
+  S.repeatSong = true;
+  S.gapUntil = performance.now() + S.gap * 1000;
+  P.currentTime = 0; S.viewT = 0; S.viewUntil = performance.now() + 150;
+  needs = true;
+}
+audio.addEventListener('seeked', dirty);
+
+function setReady(){
+  const ok = S.dur > 0;
+  ['#prevM','#back5','#play','#mark','#nextM','#loopCur'].forEach(s => $(s).disabled = !ok);
+}
+function setPlayIcon(playing){
+  $('#playIcon').innerHTML = playing ? ICON.pause : ICON.play;
+  $('#play').setAttribute('aria-label', playing ? '暫停' : '播放');
+}
+function togglePlay(){
+  if (!S.dur) return;
+  S.gapUntil = 0; S.repeatSong = false;
+  if (P.paused) fadeIn(0.03); else fadeReset();
+  ensureFx();
+  if (P.paused){
+    const p = P.play();
+    if (p && p.catch) p.catch(err => {
+      if (!P.wa && err && err.name === 'NotSupportedError') useFallback();
+      toast('無法播放，請再按一次');
+    });
+  } else P.pause();
+}
+function applySpeed(){
+  audio.defaultPlaybackRate = S.speed; audio.playbackRate = S.speed;
+  lockPitch();
+  P.setRate();
+  $('#spd').textContent = S.speed.toFixed(2) + '×';
+  if (S.dur) metaText();
+}
+function showPre(){ const el = $('#pre'); if (el) el.textContent = S.pre + ' 秒'; }
+function showGap(){ const el = $('#gap'); if (el) el.textContent = (S.gap ? S.gap.toFixed(1) : '0') + ' 秒'; }
+function curT(){ return performance.now() < S.viewUntil ? S.viewT : P.currentTime; }
+function seek(t){
+  if (!S.dur) return;
+  S.gapUntil = 0; S.repeatSong = false;
+  fadeReset();
+  t = clamp(t, 0, S.dur);
+  S.anchor = null; S.viewT = t; S.viewUntil = performance.now() + 300;
+  P.currentTime = t; dirty();
+}
+
+/* ---------- markers ---------- */
+function sortM(){ S.markers.sort((a, b) => a.t - b.t); }
+function idxOf(id){ return S.markers.findIndex(m => m.id === id); }
+function bounds(key){
+  const ms = S.markers;
+  if (key === 0) return [0, ms.length ? ms[0].t : S.dur];
+  const i = idxOf(key); if (i < 0) return null;
+  return [ms[i].t, i + 1 < ms.length ? ms[i + 1].t : S.dur];
+}
+function segAt(t){
+  let key = 0;
+  for (const m of S.markers){ if (m.t <= t + 0.01) key = m.id; else break; }
+  return key;
+}
+function starts(){ return [{ key:0, t:0 }, ...S.markers.map(m => ({ key:m.id, t:m.t }))]; }
+function curIndex(){
+  const st = starts(), t = curT();
+  if (S.anchor != null){
+    const i = st.findIndex(s => s.key === S.anchor);
+    if (i >= 0 && t >= st[i].t - S.pre - 0.3 && t <= st[i].t + 1.5) return { i, fresh:true };
+  }
+  let i = 0;
+  for (let k = 0; k < st.length; k++) if (st[k].t <= t + 0.01) i = k;
+  return { i, fresh: t - st[i].t < 1.5 };
+}
+
+function addMarker(){
+  if (!S.dur) return;
+  const t = round2(curT());
+  const near = S.markers.find(m => Math.abs(m.t - t) < 0.25);
+  if (near){ S.sel = near.id; renderList(); scrollToRow(near.id); toast('這裡已經有標記 ' + (idxOf(near.id) + 1)); return; }
+  if (S.markers.length >= MAX){ toast('最多 ' + MAX + ' 個標記'); return; }
+  const m = { id:S.nextId++, t, name:'' };
+  S.markers.push(m); sortM();
+  S.sel = m.id;
+  save(); renderList(); dirty(); scrollToRow(m.id);
+  toast('已加入標記 ' + (idxOf(m.id) + 1));
+}
+function jumpTo(key, loopFollows, select){
+  const b = bounds(key); if (!b) return;
+  if (S.loop != null && S.loop !== key){
+    if (loopFollows) S.loop = key;
+    else { S.loop = null; toast('已停止循環'); }
+  }
+  S.anchor = key; S.gapUntil = 0; S.repeatSong = false;
+  fadeReset();
+  if (key && select) S.sel = key;
+  const t = Math.max(0, b[0] - S.pre);
+  S.viewT = t; S.viewUntil = performance.now() + 300;
+  P.currentTime = t;
+  renderList(); dirty();
+  if (key) scrollToRow(key);
+}
+function prev(){
+  if (!S.dur) return;
+  const st = starts(), { i, fresh } = curIndex();
+  jumpTo(st[fresh ? Math.max(0, i - 1) : i].key, true);
+}
+function next(){
+  if (!S.dur) return;
+  const st = starts(), { i } = curIndex();
+  if (i + 1 < st.length) jumpTo(st[i + 1].key, true);
+  else toast('已經是最後一段');
+}
+function toggleLoop(key){
+  if (S.loop === key){ S.loop = null; S.gapUntil = 0; fadeReset(); toast('已停止循環'); renderList(); dirty(); return; }
+  S.loop = key;
+  jumpTo(key, true);
+  if (P.paused) togglePlay();
+}
+function loopCurrent(){
+  if (!S.dur) return;
+  const { i } = curIndex();
+  toggleLoop(starts()[i].key);
+}
+function loopLabel(){
+  if (S.loop == null) return '';
+  if (S.loop === 0) return S.markers.length ? '循環：開頭到 1　✕' : '循環：整首　✕';
+  return '循環：第 ' + (idxOf(S.loop) + 1) + ' 段　✕';
+}
+function scrollToRow(id){
+  const el = document.querySelector('.seg[data-id="' + id + '"]');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', behavior:'smooth' });
+}
+
+function updateSync(){
+  if (!S.name || dbApi) return;
+  if (window.__MARKERS__) setSync(sameAsShared() ? 'shared' : 'local');
+  else setSync('local');
+}
+function sameAsShared(){
+  const B = window.__MARKERS__ && window.__MARKERS__.markers;
+  if (!B || B.length !== S.markers.length) return false;
+  return B.every((b, i) => Math.abs(b.t - S.markers[i].t) < 0.005 && (b.name || '') === (S.markers[i].name || ''));
+}
+function renderList(){
+  const ms = S.markers;
+  if (typeof renderLib === 'function' && $('#libBox').open) renderLib();
+  updateSync();
+  $('#count').textContent = ms.length;
+  $('#empty').hidden = ms.length > 0;
+  $('#list').innerHTML = ms.map((m, i) => {
+    const end = i + 1 < ms.length ? ms[i + 1].t : S.dur;
+    const len = Math.max(0, end - m.t);
+    const sel = S.sel === m.id, lp = S.loop === m.id;
+    return '<li class="seg' + (sel ? ' sel' : '') + (lp ? ' looping' : '') + '" data-id="' + m.id + '">' +
+      '<div class="row" data-act="go">' +
+        '<button class="go" data-act="go" aria-label="從標記 ' + (i + 1) + ' 開始播放">' +
+          '<span class="flag">' + (i + 1) + '</span>' +
+          '<span class="when"><span class="stamp">' + fmt(m.t) + '</span><span class="len">' + (S.dur ? len.toFixed(1) + ' 秒' : '') + '</span></span>' +
+        '</button>' +
+        '<input class="name" data-act="name" value="' + esc(m.name) + '" placeholder="備註，例如：副歌" maxlength="40" aria-label="標記 ' + (i + 1) + ' 的備註" enterkeyhint="done">' +
+        '<button class="loopbtn" data-act="loop" aria-pressed="' + lp + '" aria-label="循環第 ' + (i + 1) + ' 段">' + ICON.loop + '<span class="t">循環</span></button>' +
+      '</div>' +
+      (sel ? '<div class="tools">' +
+        '<button data-act="nudge" data-d="-0.1">往前 0.1 秒</button>' +
+        '<button data-act="nudge" data-d="0.1">往後 0.1 秒</button>' +
+        '<button data-act="here">移到目前位置</button>' +
+        '<button class="del" data-act="del">刪除</button>' +
+      '</div>' : '') +
+    '</li>';
+  }).join('');
+  S.lastNow = undefined;
+  const tag = $('#loopTag');
+  tag.hidden = S.loop == null;
+  tag.textContent = loopLabel();
+  lastLoopTxt = tag.textContent;
+  if ($('#io').open && document.activeElement !== $('#ioText')) $('#ioText').value = exportText();
+}
+
+$('#list').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const li = b.closest('.seg'); const id = +li.dataset.id;
+  const m = S.markers.find(x => x.id === id); if (!m) return;
+  const act = b.dataset.act;
+  if (act === 'go'){
+    const again = S.lastTap === id;
+    S.lastTap = id;
+    jumpTo(id, false, false);
+    S.sel = again ? (S.sel === id ? null : id) : null;
+    renderList();
+    if (P.paused) togglePlay();
+  } else if (act === 'loop'){
+    toggleLoop(id);
+  } else if (act === 'nudge'){
+    m.t = clamp(round2(m.t + parseFloat(b.dataset.d)), 0, S.dur);
+    sortM(); save(); renderList();
+    seek(Math.max(0, m.t - S.pre)); S.anchor = id;
+  } else if (act === 'here'){
+    m.t = round2(curT());
+    sortM(); save(); renderList(); dirty();
+    toast('標記 ' + (idxOf(id) + 1) + ' 已移到 ' + fmt(m.t));
+  } else if (act === 'del'){
+    const n = idxOf(id) + 1;
+    S.markers = S.markers.filter(x => x.id !== id);
+    if (S.loop === id) S.loop = null;
+    if (S.anchor === id) S.anchor = null;
+    S.sel = null;
+    save(); renderList(); dirty();
+    toast('已刪除標記 ' + n);
+  }
+});
+$('#list').addEventListener('input', e => {
+  if (e.target.dataset.act !== 'name') return;
+  const m = S.markers.find(x => x.id === +e.target.closest('.seg').dataset.id);
+  if (m){ m.name = e.target.value.slice(0, 40); S.touched = true; saveSoon(); dirty(); }
+});
+// an open row closes as soon as you tap anywhere outside it (another loop button, controls, empty space)
+function collapseSel(){
+  if (S.sel == null) return;
+  S.sel = null;
+  document.querySelectorAll('.seg.sel').forEach(el => { el.classList.remove('sel'); const t = el.querySelector('.tools'); if (t) t.remove(); });
+}
+document.addEventListener('click', e => { if (S.sel != null && !e.target.closest('.seg.sel')) collapseSel(); }, true);
+$('#list').addEventListener('focusin', e => {
+  if (e.target.dataset.act !== 'name') return;
+  const id = +e.target.closest('.seg').dataset.id;
+  if (S.sel !== id){
+    S.sel = id;
+    document.querySelectorAll('.seg.sel').forEach(el => { el.classList.remove('sel'); const t = el.querySelector('.tools'); if (t) t.remove(); });
+    const li = e.target.closest('.seg'); li.classList.add('sel');
+    li.insertAdjacentHTML('beforeend', '<div class="tools"><button data-act="nudge" data-d="-0.1">往前 0.1 秒</button><button data-act="nudge" data-d="0.1">往後 0.1 秒</button><button data-act="here">移到目前位置</button><button class="del" data-act="del">刪除</button></div>');
+  }
+});
+$('#list').addEventListener('keydown', e => {
+  if (e.target.matches('.name') && e.key === 'Enter') e.target.blur();
+});
+
+/* ---------- canvases ---------- */
+const zc = $('#zoom'), oc = $('#overview');
+const zx = zc.getContext('2d'), ox = oc.getContext('2d');
+const ovBase = document.createElement('canvas'), ovPlayed = document.createElement('canvas');
+let DPR = 1, col = {};
+let needs = true;
+function dirty(){ needs = true; }
+
+function readColors(){
+  const cs = getComputedStyle(document.documentElement);
+  const g = n => cs.getPropertyValue(n).trim();
+  col = { wave:g('--wave'), played:g('--played'), flag:g('--flag'), flagInk:g('--flag-ink'),
+    loop:g('--loop'), ink:g('--ink'), soft:g('--ink-soft'), surface:g('--surface') };
+  buildOverview(); dirty();
+}
+function fit(){
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  for (const c of [zc, oc]){
+    const r = c.getBoundingClientRect();
+    c.width = Math.max(1, Math.round(r.width * DPR));
+    c.height = Math.max(1, Math.round(r.height * DPR));
+  }
+  buildOverview(); dirty();
+}
+function buildOverview(){
+  const W = oc.width, H = oc.height;
+  const top = 14 * DPR, mid = top + (H - top) / 2, amp = (H - top) / 2 - 3 * DPR;
+  for (const [cv, color] of [[ovBase, col.wave], [ovPlayed, col.played]]){
+    cv.width = W; cv.height = H;
+    const x = cv.getContext('2d');
+    x.fillStyle = color;
+    if (!S.peaks || !S.dur){ if (S.dur) x.fillRect(0, mid - DPR / 2, W, DPR); continue; }
+    const P = S.peaks;
+    const bw = Math.max(1, Math.round(1.5 * DPR)), step = bw + Math.max(1, Math.round(DPR));
+    for (let px = 0; px < W; px += step){
+      const ia = Math.floor(px / W * S.dur * RATE);
+      const ib = Math.max(ia + 1, Math.floor((px + step) / W * S.dur * RATE));
+      let m = 0;
+      for (let i = ia; i < ib && i < P.length; i++) if (P[i] > m) m = P[i];
+      const h = Math.max(DPR * 0.5, m * amp);
+      x.fillRect(px, mid - h, bw, h * 2);
+    }
+  }
+}
+function drawOverview(t){
+  const W = oc.width, H = oc.height;
+  ox.clearRect(0, 0, W, H);
+  if (!S.dur) return;
+  const X = s => s / S.dur * W;
+  if (S.loop != null){
+    const b = bounds(S.loop);
+    if (b){ ox.fillStyle = col.loop; ox.fillRect(X(b[0]), 0, Math.max(DPR, X(b[1]) - X(b[0])), H); }
+  }
+  ox.drawImage(ovBase, 0, 0);
+  const px = X(t);
+  ox.save(); ox.beginPath(); ox.rect(0, 0, px, H); ox.clip(); ox.drawImage(ovPlayed, 0, 0); ox.restore();
+
+  ox.font = '700 ' + (10 * DPR) + 'px "Barlow Semi Condensed","Arial Narrow",sans-serif';
+  ox.textAlign = 'center'; ox.textBaseline = 'middle';
+  let lastLabel = -Infinity;
+  S.markers.forEach((m, i) => {
+    const x = Math.round(X(m.t));
+    ox.fillStyle = col.flag;
+    ox.fillRect(x - DPR * 0.5, 12 * DPR, DPR, H - 12 * DPR);
+    if (x - lastLabel >= 13 * DPR){
+      ox.fillText(String(i + 1), x, 7 * DPR);
+      lastLabel = x;
+    }
+  });
+  // zoom window outline
+  const w0 = X(t - S.win / 2), w1 = X(t + S.win / 2);
+  ox.globalAlpha = 0.35; ox.strokeStyle = col.ink; ox.lineWidth = DPR;
+  ox.strokeRect(w0 + DPR / 2, 13 * DPR, w1 - w0 - DPR, H - 14 * DPR);
+  ox.globalAlpha = 1;
+  ox.fillStyle = col.ink;
+  ox.fillRect(px - DPR, 12 * DPR, DPR * 2, H - 12 * DPR);
+}
+function drawZoom(t){
+  const W = zc.width, H = zc.height;
+  zx.clearRect(0, 0, W, H);
+  if (!S.dur) return;
+  const win = S.win, t0 = t - win / 2, spp = win / W;
+  const X = s => (s - t0) / spp;
+  const top = 24 * DPR, mid = top + (H - top) / 2, amp = (H - top) / 2 - 6 * DPR;
+
+  if (S.loop != null){
+    const b = bounds(S.loop);
+    if (b){ zx.fillStyle = col.loop; zx.fillRect(X(b[0]), 0, X(b[1]) - X(b[0]), H); }
+  }
+  if (S.peaks){
+    const P = S.peaks;
+    const bw = Math.max(2, Math.round(2 * DPR)), step = bw + Math.max(1, Math.round(1.5 * DPR));
+    const offset = ((t0 / spp) % step + step) % step; // bars scroll with audio
+    for (let x = -offset; x < W; x += step){
+      const ta = t0 + x * spp, tb = ta + step * spp;
+      if (tb < 0 || ta > S.dur) continue;
+      const ia = Math.max(0, Math.floor(ta * RATE)), ib = Math.min(P.length, Math.ceil(tb * RATE));
+      let m = 0;
+      for (let i = ia; i < ib; i++) if (P[i] > m) m = P[i];
+      const h = Math.max(DPR, m * amp);
+      zx.fillStyle = ta + step * spp / 2 < t ? col.played : col.wave;
+      zx.fillRect(x, mid - h, bw, h * 2);
+    }
+  } else {
+    zx.fillStyle = col.soft;
+    zx.font = (13 * DPR) + 'px ' + getComputedStyle(document.body).fontFamily;
+    zx.textAlign = 'center'; zx.textBaseline = 'middle';
+    zx.fillText('正在分析波形…', W / 2, mid);
+    const xs = Math.max(0, X(0)), xe = Math.min(W, X(S.dur));
+    zx.fillRect(xs, mid + 16 * DPR, xe - xs, DPR);
+  }
+  // song edges
+  zx.fillStyle = col.surface;
+  if (X(0) > 0) zx.fillRect(0, 0, X(0), H);
+  if (X(S.dur) < W) zx.fillRect(X(S.dur), 0, W - X(S.dur), H);
+
+  // flags
+  const numFont = '700 ' + (13 * DPR) + 'px "Barlow Semi Condensed","Arial Narrow",sans-serif';
+  const nameFont = '500 ' + (12 * DPR) + 'px ' + getComputedStyle(document.body).fontFamily;
+  zx.textBaseline = 'middle';
+  S.markers.forEach((m, i) => {
+    const x = Math.round(X(m.t));
+    if (x < -160 * DPR || x > W + 10 * DPR) return;
+    const label = String(i + 1);
+    zx.font = numFont;
+    const fw = Math.max(20 * DPR, zx.measureText(label).width + 12 * DPR), fh = 18 * DPR, fy = 3 * DPR;
+    zx.fillStyle = col.flag;
+    zx.fillRect(x - DPR * 0.75, fy, DPR * 1.5, H - fy);
+    zx.beginPath();
+    zx.moveTo(x, fy); zx.lineTo(x + fw, fy); zx.lineTo(x + fw - 4 * DPR, fy + fh / 2);
+    zx.lineTo(x + fw, fy + fh); zx.lineTo(x, fy + fh); zx.closePath(); zx.fill();
+    zx.fillStyle = col.flagInk; zx.textAlign = 'center';
+    zx.fillText(label, x + (fw - 4 * DPR) / 2, fy + fh / 2 + DPR * 0.5);
+    if (m.name){
+      zx.font = nameFont; zx.fillStyle = col.soft; zx.textAlign = 'left';
+      zx.fillText(m.name.length > 10 ? m.name.slice(0, 10) + '…' : m.name, x + fw + 4 * DPR, fy + fh / 2 + DPR * 0.5);
+    }
+  });
+  // playhead
+  zx.fillStyle = col.ink;
+  zx.fillRect(Math.round(W / 2) - DPR, 0, DPR * 2, H);
+}
+
+/* pointer: overview */
+let ovDrag = false;
+function seekOv(e){
+  const r = oc.getBoundingClientRect();
+  seek(clamp((e.clientX - r.left) / r.width, 0, 1) * S.dur);
+}
+oc.addEventListener('pointerdown', e => {
+  if (!S.dur) return;
+  ovDrag = true;
+  try { oc.setPointerCapture(e.pointerId); } catch(_){}
+  seekOv(e);
+});
+oc.addEventListener('pointermove', e => { if (ovDrag) seekOv(e); });
+['pointerup', 'pointercancel'].forEach(n => oc.addEventListener(n, () => { ovDrag = false; }));
+
+/* pointer: zoom */
+let zd = null;
+zc.addEventListener('pointerdown', e => {
+  if (!S.dur) return;
+  try { zc.setPointerCapture(e.pointerId); } catch(_){}
+  zd = { x:e.clientX, y:e.clientY, t:curT(), moved:false, wasPlaying:!P.paused };
+});
+zc.addEventListener('pointermove', e => {
+  if (!zd) return;
+  const dx = e.clientX - zd.x;
+  if (!zd.moved && Math.abs(dx) > 4){
+    zd.moved = true;
+    if (zd.wasPlaying) P.pause();
+  }
+  if (zd.moved){
+    const w = zc.getBoundingClientRect().width;
+    seek(zd.t - dx * S.win / w);
+  }
+});
+zc.addEventListener('pointerup', e => {
+  if (!zd) return;
+  const r = zc.getBoundingClientRect();
+  if (!zd.moved){
+    const tapT = zd.t + (e.clientX - r.left - r.width / 2) * S.win / r.width;
+    let hit = null;
+    if (e.clientY - r.top < 26){
+      for (const m of S.markers){
+        const mx = r.width / 2 + (m.t - zd.t) * r.width / S.win;
+        if (e.clientX - r.left >= mx - 4 && e.clientX - r.left <= mx + 28) hit = m;
+      }
+    }
+    if (hit) jumpTo(hit.id, false);
+    else seek(tapT);
+  }
+  if (zd.wasPlaying && P.paused) P.play().catch(() => {});
+  zd = null;
+});
+zc.addEventListener('pointercancel', () => { if (zd && zd.wasPlaying) P.play().catch(() => {}); zd = null; });
+
+/* ---------- 故事篇 ---------- */
+const STORY = window.__STORY__ && window.__STORY__.imgs ? window.__STORY__ : null;
+let view = 'wave', storyCache = [], lastShot = -2;
+if (STORY){
+  view = 'story';                                   // 預設先進故事版
+  try { view = localStorage.getItem('view2') === 'wave' ? 'wave' : 'story'; } catch(e){}
+  storyCache = STORY.imgs.map(src => { const im = new Image(); im.src = src; return im; });
+}
+function shotAt(t){
+  if (!STORY || !STORY.cues || !STORY.cues.length) return -1;
+  let lo = 0, hi = STORY.cues.length - 1, at = -1;
+  while (lo <= hi){
+    const mid = (lo + hi) >> 1;
+    if (STORY.cues[mid][0] <= t + 0.005){ at = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  if (at < 0) return -1;
+  const c = STORY.cues[at];
+  return { idx: c[1], i: c[2], n: c[3] };
+}
+function drawStory(t){
+  if (view !== 'story') return;
+  const sh = shotAt(t);
+  const im = $('#storyImg'), note = $('#storyNote'), num = $('#storyNum');
+  if (!sh || sh === -1){
+    if (lastShot !== -1){
+      lastShot = -1; num.hidden = true;
+      if (STORY.cover){ im.src = STORY.cover; im.hidden = false; note.hidden = true; }
+      else { im.hidden = true; note.hidden = false; }
+    }
+    return;
+  }
+  note.hidden = true; im.hidden = false;
+  if (sh.idx !== lastShot){ lastShot = sh.idx; im.src = STORY.imgs[sh.idx]; }
+  const label = sh.n > 1 ? sh.i + ' / ' + sh.n : '';
+  num.hidden = !label; num.textContent = label;
+}
+function setView(v){
+  if (!STORY) return;
+  view = v === 'story' ? 'story' : 'wave';
+  try { localStorage.setItem('view2', view); } catch(e){}
+  document.querySelectorAll('#viewsw button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+  const story = view === 'story';
+  $('.stage').classList.toggle('story', story);
+  zc.hidden = story; $('#zoomIn').parentNode.hidden = story;
+  if (!story){ $('#storyImg').hidden = true; $('#storyNote').hidden = true; $('#storyNum').hidden = true; lastShot = -2; }
+  else { $('#hint').hidden = true; lastShot = -2; drawStory(curT()); }
+  dirty();
+}
+if (STORY){
+  $('#viewsw').addEventListener('click', e => { const b = e.target.closest('[data-view]'); if (b) setView(b.dataset.view); });
+  setView(view);
+} else $('#viewsw').hidden = true;
+
+/* ---------- frame loop ---------- */
+let lastNowTxt = '', lastLeftTxt = '', lastLoopTxt = '';
+function frame(){
+  const t = curT();
+  if (S.gapUntil){
+    if (S.loop == null && !S.repeatSong){ S.gapUntil = 0; }
+    else if (performance.now() >= S.gapUntil){
+      S.gapUntil = 0; S.repeatSong = false; needs = true;
+      fadeIn(0.04);
+      P.play().catch(() => {});
+    }
+  }
+  if (S.loop != null && !P.paused && performance.now() >= S.viewUntil){
+    const b = bounds(S.loop);
+    if (!b){ S.loop = null; renderList(); }
+    else {
+      const tail = loopEnd === 'cut' ? 0 : Math.min(TAIL, Math.max(0, S.dur - b[1]));
+      const now = P.currentTime;
+      if (loopEnd === 'fade' && fx && tail && !S.fading && now >= b[1] - 0.02){
+        S.fading = true;
+        fadeOut(Math.max(0.05, tail - 0.05) / S.speed);   // reach silence just before the cut
+      }
+      if (now >= b[1] + tail - 0.03){
+        const s = Math.max(0, b[0] - S.pre);
+        if (S.gap > 0){
+          P.pause();
+          S.gapUntil = performance.now() + S.gap * 1000;
+        }
+        P.currentTime = s; S.viewT = s; S.viewUntil = performance.now() + 120;
+        S.fading = false;
+        if (S.gap <= 0) fadeIn(0.06);
+        needs = true;
+      }
+    }
+  }
+  if (needs || t !== S.lastT){
+    S.lastT = t; needs = false;
+    if (view === 'story') drawStory(t); else drawZoom(t);
+    drawOverview(t);
+    const a = fmt(t), b = '-' + fmt(Math.max(0, S.dur - t));
+    if (a !== lastNowTxt){ $('#tNow').textContent = a; lastNowTxt = a; }
+    if (b !== lastLeftTxt){ $('#tLeft').textContent = b; lastLeftTxt = b; }
+    if (S.loop != null){
+      const txt = loopLabel() + (S.gapUntil ? '（休息中）' : '');
+      if (txt !== lastLoopTxt){ $('#loopTag').textContent = txt; lastLoopTxt = txt; }
+    }
+    const key = S.dur ? segAt(t) : null;
+    if (key !== S.lastNow){
+      S.lastNow = key;
+      document.querySelectorAll('.seg.now').forEach(el => el.classList.remove('now'));
+      if (key){ const el = document.querySelector('.seg[data-id="' + key + '"]'); if (el) el.classList.add('now'); }
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- controls ---------- */
+/* 加入音檔：可一次多選；檔名對得上「待連結」的曲目就自動接回標記與清單 */
+function ghostKey(name){ return 'ghost:' + name; }
+function baseName(n){ return String(n || '').replace(/\.[^.]+$/, ''); }
+function findLost(name){
+  const l = libAll().filter(r => (r.missing || r.stored === false) && !r.url);
+  return l.find(r => r.name === name) || l.find(r => baseName(r.name) === baseName(name)) || null;
+}
+function plSwapKey(oldK, newK){
+  if (oldK === newK) return;
+  const l = plAll(); let hit = false;
+  for (const p of l){
+    const i = p.keys.indexOf(oldK);
+    if (i < 0) continue;
+    hit = true;
+    if (p.keys.includes(newK)) p.keys.splice(i, 1); else p.keys[i] = newK;
+  }
+  if (hit) plSave(l);
+}
+async function adoptFiles(list){
+  const files = Array.from(list || []).filter(Boolean);
+  if (!files.length) return 0;
+  const openFirst = files.length === 1 || !S.name;
+  let linked = 0, opened = false;
+  for (const f of files){
+    const blob = f.type ? f : new Blob([f], { type: guessType(f.name) });
+    const key = songKey(f.name, blob.size), now = Date.now();
+    const lost = findLost(f.name);
+    if (lost && lost.key !== key){
+      const gm = LS.get(lost.key);
+      if (gm && !LS.get(key)) LS.set(key, gm);
+      plSwapKey(lost.key, key);
+      libSave(libAll().filter(r => r.key !== lost.key));
+      if (lost.missing) try { localStorage.removeItem(lost.key); } catch(e){}
+    }
+    if (lost) linked++;
+    const old = libAll().find(r => r.key === key);
+    libUpsert({ key, name: f.name, size: blob.size, type: blob.type, lastAt: now,
+                addedAt: (old && old.addedAt) || now, stored: true, missing: false });
+    if (curPl){ const p = plById(curPl); if (p && !p.keys.includes(key)) plToggle(curPl, key); }
+    if (!opened && openFirst && key !== S.key){ opened = true; openBlob(blob, f.name, false); }
+    try { await audioPut(key, blob); }
+    catch(e){
+      libUpsert({ key, stored:false });
+      toast('空間不足，「' + baseName(f.name) + '」的音檔沒存起來；標記仍會保存');
+    }
+  }
+  renderLib();
+  if (files.length > 1 || linked)
+    toast('已加入 ' + files.length + ' 首' + (linked ? '，其中 ' + linked + ' 首接回原本的標記' : ''));
+  return files.length;
+}
+$('#file').addEventListener('change', e => {
+  const fs = Array.from(e.target.files || []);
+  e.target.value = '';
+  adoptFiles(fs);
+});
+$('#relinkBtn').addEventListener('click', () => {
+  toast('選取原本那些音檔，檔名相同就會自動接回標記');
+  $('#file').click();
+});
+$('#play').addEventListener('click', togglePlay);
+$('#mark').addEventListener('click', addMarker);
+$('#prevM').addEventListener('click', prev);
+$('#nextM').addEventListener('click', next);
+$('#back5').addEventListener('click', () => seek(curT() - 5));
+$('#loopCur').addEventListener('click', loopCurrent);
+$('#loopTag').addEventListener('click', () => { if (S.loop != null) toggleLoop(S.loop); });
+$('#vox').addEventListener('input', e => setVox(+e.target.value / 100));
+$('#voxPct').addEventListener('click', () => setVox(1));
+$('#spdDown').addEventListener('click', () => { S.speed = round2(clamp(S.speed - 0.05, 0.5, 1.5)); applySpeed(); save(); });
+$('#spdUp').addEventListener('click', () => { S.speed = round2(clamp(S.speed + 0.05, 0.5, 1.5)); applySpeed(); save(); });
+$('#zoomIn').addEventListener('click', () => { const i = WINS.indexOf(S.win); S.win = WINS[Math.max(0, i - 1)]; save(); dirty(); });
+$('#zoomOut').addEventListener('click', () => { const i = WINS.indexOf(S.win); S.win = WINS[Math.min(WINS.length - 1, i + 1)]; save(); dirty(); });
+
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === ' '){ e.preventDefault(); togglePlay(); }
+  else if (k === 'm'){ addMarker(); }
+  else if (k === 'arrowleft'){ e.preventDefault(); prev(); }
+  else if (k === 'arrowright'){ e.preventDefault(); next(); }
+  else if (k === 'l'){ loopCurrent(); }
+  else if (k === 'b'){ seek(curT() - 5); }
+});
+
+/* ---------- export / import ---------- */
+function markerLines(ms){ return ms.map(m => fmt(m.t, 2) + (m.name ? ' ' + m.name : '')).join('\n'); }
+function exportText(){
+  const l = libAll().sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+  if (S.key && S.name && !l.some(r => r.key === S.key)) l.unshift({ key: S.key, name: S.name });
+  const blocks = l.map(r => {
+    const ms = r.key === S.key ? S.markers : ((LS.get(r.key) || {}).markers || []);
+    return '# ' + r.name + (ms.length ? '\n' + markerLines(ms) : '');
+  });
+  const byKey = {}; l.forEach(r => byKey[r.key] = r.name);
+  const pls = plAll().map(p => '@' + p.name + '：' + p.keys.map(k => byKey[k]).filter(Boolean).join('、')).filter(x => x.length > 2);
+  return blocks.join('\n\n') + (pls.length ? '\n\n' + pls.join('\n') : '');
+}
+function parseMarkers(lines){
+  const out = [];
+  for (const line of lines){
+    const mm = line.match(/^\s*(\d+):(\d{1,2}(?:\.\d+)?)\s*(.*)$/);
+    if (!mm) continue;
+    const t = +mm[1] * 60 + +mm[2];
+    if (!isFinite(t)) continue;
+    out.push({ t: round2(t), name: mm[3].trim().slice(0, 40) });
+  }
+  out.sort((a, b) => a.t - b.t);
+  return out.slice(0, MAX).map((m, i) => ({ id: i + 1, t: m.t, name: m.name }));
+}
+var ioLock = false;   // 讀入備份檔時，不要被自動帶出的匯出文字蓋掉
+$('#io').addEventListener('toggle', () => {
+  if (ioLock) return;
+  if ($('#io').open && document.activeElement !== $('#ioText')) $('#ioText').value = exportText();
+});
+$('#dlBtn').addEventListener('click', () => {
+  const txt = exportText();
+  if (!txt.trim()){ toast('還沒有曲目可以備份'); return; }
+  const d = new Date(), pad = x => String(x).padStart(2, '0');
+  const fn = 'yuanyin-backup-' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '.txt';
+  try {
+    const url = URL.createObjectURL(new Blob(['﻿' + txt], { type: 'text/plain;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = fn; a.rel = 'noopener';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 5000);
+    toast('已下載備份檔，建議存到「檔案」或雲端硬碟');
+  } catch(e){ toast('這個瀏覽器不能下載，請改用「複製」貼到備忘錄'); }
+});
+$('#bakFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  try {
+    const txt = (await f.text()).replace(/^﻿/, '');
+    ioLock = true;
+    $('#io').open = true;
+    $('#ioText').value = txt;
+    setTimeout(() => { ioLock = false; }, 500);
+    toast('已讀入備份檔，按「用這些取代目前標記」才會真的匯入');
+  } catch(err){ toast('讀不到這個檔，請確認是備份的文字檔'); }
+});
+$('#copyBtn').addEventListener('click', async () => {
+  const ta = $('#ioText'); ta.value = exportText();
+  try { await navigator.clipboard.writeText(ta.value); toast('已複製 ' + S.markers.length + ' 個標記'); return; } catch(e){}
+  try { ta.focus(); ta.select(); if (document.execCommand('copy')) { toast('已複製'); return; } } catch(e){}
+  toast('請長按文字框自行複製');
+});
+$('#importBtn').addEventListener('click', () => {
+  const lines = $('#ioText').value.split(/\r?\n/);
+  const hasHeads = lines.some(l => /^\s*#\s*\S/.test(l));
+  if (!hasHeads){
+    if (!S.name){ toast('請先開啟一首歌，或在文字前加上「# 歌名」'); return; }
+    const ms = parseMarkers(lines).filter(m => !S.dur || m.t <= S.dur);
+    if (!ms.length){ toast('找不到可用的時間，格式像 1:23.45'); return; }
+    S.markers = ms; S.nextId = ms.length + 1;
+    S.loop = null; S.sel = null; S.anchor = null;
+    save(); renderList(); dirty();
+    toast('已匯入 ' + ms.length + ' 個標記到目前這首');
+    return;
+  }
+  const blocks = []; const plLines = []; let cur = null;
+  for (const line of lines){
+    const h = line.match(/^\s*#\s*(.+?)\s*$/);
+    const pl = line.match(/^\s*@\s*(.+?)\s*[：:]\s*(.*)$/);
+    if (h){ cur = { name: h[1], lines: [] }; blocks.push(cur); }
+    else if (pl){ plLines.push(pl); cur = null; }
+    else if (cur) cur.lines.push(line);
+  }
+  const lib = libAll(); let matched = 0, waiting = 0;
+  const base = n => n.replace(/\.[^.]+$/, '');
+  for (const bl of blocks){
+    const ms = parseMarkers(bl.lines);
+    const rec = lib.find(r => r.name === bl.name) || lib.find(r => base(r.name) === base(bl.name));
+    if (rec){
+      LS.set(rec.key, Object.assign({}, LS.get(rec.key) || {}, { markers: ms, nextId: ms.length + 1 }));
+      matched++;
+      if (rec.key === S.key){
+        S.markers = ms.map(m => ({ ...m })); S.nextId = ms.length + 1;
+        S.loop = null; S.sel = null; S.anchor = null;
+        save(); renderList(); dirty();
+      }
+    } else {
+      const body = { markers: ms, nextId: ms.length + 1 };
+      const gk = ghostKey(bl.name);
+      LS.set(gk, body); LS.set('pending:' + bl.name, body);
+      libUpsert({ key: gk, name: bl.name, missing: true, stored: false, addedAt: Date.now() });
+      waiting++;
+    }
+  }
+  let plCount = 0;
+  const lib2 = libAll();
+  for (const m of plLines){
+    const names = m[2].split(/[、,，]/).map(x => x.trim()).filter(Boolean);
+    const id = plCreate(m[1]);
+    if (!id) continue;
+    plCount++;
+    for (const nm of names){
+      const rec = lib2.find(r => r.name === nm) || lib2.find(r => base(r.name) === base(nm));
+      const p = plById(id);
+      if (rec && p && !p.keys.includes(rec.key)) plToggle(id, rec.key);
+    }
+  }
+  renderLib();
+  if (!matched && !waiting && !plCount){ toast('沒有讀到任何曲目'); return; }
+  toast('已匯入 ' + matched + ' 首' + (waiting ? '，另有 ' + waiting + ' 首待連結音檔' : '') + (plCount ? '，清單 ' + plCount + ' 個' : ''));
+  if (waiting) $('#libBox').open = true;
+});
+let clearArmed = 0;
+$('#clearBtn').addEventListener('click', () => {
+  const btn = $('#clearBtn');
+  if (Date.now() - clearArmed > 3000){
+    clearArmed = Date.now();
+    btn.textContent = '再按一次確認清除';
+    setTimeout(() => { btn.textContent = '清除全部標記'; }, 3000);
+    return;
+  }
+  clearArmed = 0; btn.textContent = '清除全部標記';
+  S.markers = []; S.loop = null; S.sel = null; S.anchor = null;
+  save(); renderList(); dirty();
+  toast('已清除全部標記');
+});
+
+/* ---------- 儲存狀態自我檢查 ---------- */
+async function diagnose(){
+  const el = $('#diagBody'); if (!el) return;
+  const inFrame = (() => { try { return window.top !== window.self; } catch(e){ return true; } })();
+  const standalone = navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  const isFile = location.protocol === 'file:';
+  let ls = false;
+  try { localStorage.setItem('__d', '1'); ls = localStorage.getItem('__d') === '1'; localStorage.removeItem('__d'); } catch(e){}
+  let idbOk = false;
+  try { await idb(); idbOk = true; } catch(e){}
+  let persisted = null, est = null;
+  try { if (navigator.storage && navigator.storage.persisted) persisted = await navigator.storage.persisted(); } catch(e){}
+  try { if (navigator.storage && navigator.storage.estimate) est = await navigator.storage.estimate(); } catch(e){}
+  const n = idbOk ? await audioCount() : null;
+  const sz = v => v >= 1073741824 ? (v / 1073741824).toFixed(1) + ' GB'
+                : v >= 1048576 ? Math.round(v / 1048576) + ' MB' : Math.max(1, Math.round(v / 1024)) + ' KB';
+  const rows = [];
+  rows.push('網址：<b>' + esc(isFile ? 'file://（本機檔案）' : (location.origin || '未知')) + '</b>');
+  rows.push('開啟方式：<b>' + (standalone ? '主畫面 App' : '瀏覽器分頁') + '</b>' + (inFrame ? '（被包在別的頁面裡）' : ''));
+  rows.push('標記與清單：' + (ls ? '<span class="good">可保存</span>' : '<span class="bad">不能保存</span>'));
+  rows.push('音檔倉庫：' + (idbOk ? '<span class="good">可保存</span>' + (n != null ? '，目前存了 ' + n + ' 首' : '')
+                                  : '<span class="bad">打不開</span>'));
+  if (persisted !== null) rows.push('長期保存：' + (persisted ? '<span class="good">已開啟</span>' : '一般（系統空間不足時可能被清掉）'));
+  if (est && est.quota) rows.push('已用 ' + sz(est.usage || 0) + '　可用約 ' + sz(est.quota));
+  let v;
+  if (isFile) v = '<span class="bad">這是直接開本機 HTML 檔，關掉多半就不見。</span>請把檔案放到網站（GitHub Pages／Netlify）再用網址開。';
+  else if (inFrame || !ls || !idbOk) v = '<span class="bad">這個開啟方式不會記住曲目。</span>請用 Safari／Chrome 直接開這個網址，不要在別的 App 裡面開。';
+  else if (!standalone) v = '會記住。iPhone 建議按分享鍵「加入主畫面」，以後固定從桌面圖示進來——注意 Safari 分頁存的和主畫面 App 存的是分開的兩份，換一邊就會看起來像不見了。';
+  else v = '<span class="good">會記住。</span>固定從這個桌面圖示進來就好，並定期按「下載備份檔」存一份。';
+  el.innerHTML = rows.join('<br>') + '<br><br>' + v;
+}
+$('#diag').addEventListener('toggle', () => { if ($('#diag').open) diagnose(); });
+
+/* ---------- init ---------- */
+readColors();
+fit();
+window.addEventListener('resize', fit);
+if (window.ResizeObserver) new ResizeObserver(fit).observe(zc);
+try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors); } catch(e){}
+new MutationObserver(readColors).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(dirty);
+showGap();
+renderList();
+requestAnimationFrame(frame);
+
+initCloud();
+const EMB = window.__SONG__;
+if (EMB && EMB.data){
+  try {
+    const bin = atob(EMB.data), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    openBlob(new Blob([u8], { type: EMB.type || guessType(EMB.name) }), EMB.name, true, window.__MARKERS__);
+    $('#songMeta').textContent = '讀取中…';
+  } catch(e){ toast('內建歌曲讀取失敗，請手動開啟音檔'); }
+}
+if (!window.__STEMS__) $('#voxBox').hidden = true;   // 沒有分軌就不顯示人聲拉桿
+(function checkStorage(){
+  let ok = false;
+  try { localStorage.setItem('__chk', '1'); ok = localStorage.getItem('__chk') === '1'; localStorage.removeItem('__chk'); } catch(e){ ok = false; }
+  if (ok && !window.indexedDB) ok = false;
+  if (!ok){ $('#noSave').hidden = false; $('#libBox').open = true; return; }
+  idb().catch(() => { $('#noSave').hidden = false; });     // 無痕模式常常開不了資料庫
+})();
+renderLib();
+loadRemote();
+(async () => {
+  if (S.name) return;
+  const l = libAll().filter(r => r.stored !== false).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+  for (const r of l){ if (S.name) return; if (await openFromLib(r.key)) return; }
+  const old = await audioGet('last');            // 舊版只記一首歌，沿用過來
+  if (old && old.buf && old.name && !S.name){
+    const blob = new Blob([old.buf], { type: old.type || guessType(old.name) });
+    const key = songKey(old.name, blob.size), now = Date.now();
+    libUpsert({ key, name: old.name, size: blob.size, type: blob.type, lastAt: now, addedAt: now, stored: true });
+    audioPut(key, blob).then(() => audioDel('last')).catch(() => {});
+    openBlob(blob, old.name, true);
+  }
+})();
+})();
+</script>
+</body>
+</html>
