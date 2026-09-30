@@ -18,24 +18,24 @@
   --bg:#F7F2EB; --surface:#FFFDFA; --surface-2:#E4D3BE; --ink:#33241E; --ink-soft:#75604F; --line:#DCC7AE;
   --wave:#C3AB98; --played:#7A1C2B; --flag:#D99A12; --flag-ink:#2A1E00; --loop:rgba(217,154,18,.17);
   --accent:#7A1C2B; --accent-ink:#FFFFFF; --danger:#A32B20;
-  --brand:#7A1C2B; --brand-ink:#FFFFFF;
+  --brand:#7A1C2B; --brand-ink:#FFFFFF; --hot:#7A1C2B; --file-ink:#7A1C2B; --file-line:#7A1C2B;
   --num:"Barlow Semi Condensed","Avenir Next Condensed","Arial Narrow",system-ui,sans-serif;
   --text:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#1E1613; --surface:#2A201C; --surface-2:#362A25; --ink:#F2E7DD; --ink-soft:#BDA89B; --line:#463730;
-    --wave:#6E564A; --played:#E28CA0; --flag:#F0B53A; --flag-ink:#231800; --loop:rgba(240,181,58,.18);
-    --accent:#E28CA0; --accent-ink:#2A0810; --danger:#FF9A8F; color-scheme:dark;
-    --brand:#B2465B; --brand-ink:#FFFFFF;
+    --bg:#121212; --surface:#1D1B1B; --surface-2:#2B2827; --ink:#EDE8E4; --ink-soft:#A69C96; --line:#383433;
+    --wave:#57504D; --played:#D96E84; --flag:#FFC648; --flag-ink:#231800; --loop:rgba(255,198,72,.20);
+    --accent:#E08298; --accent-ink:#1A0508; --danger:#FF9A8F; color-scheme:dark;
+    --brand:#B2465B; --brand-ink:#FFFFFF; --hot:#FF8352; --file-ink:#FFFFFF; --file-line:#FFFFFF;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#1E1613; --surface:#2A201C; --surface-2:#362A25; --ink:#F2E7DD; --ink-soft:#BDA89B; --line:#463730;
-  --wave:#6E564A; --played:#E28CA0; --flag:#F0B53A; --flag-ink:#231800; --loop:rgba(240,181,58,.18);
-  --accent:#E28CA0; --accent-ink:#2A0810; --danger:#FF9A8F; color-scheme:dark;
-  --brand:#B2465B; --brand-ink:#FFFFFF;
+  --bg:#121212; --surface:#1D1B1B; --surface-2:#2B2827; --ink:#EDE8E4; --ink-soft:#A69C96; --line:#383433;
+  --wave:#57504D; --played:#D96E84; --flag:#FFC648; --flag-ink:#231800; --loop:rgba(255,198,72,.20);
+  --accent:#E08298; --accent-ink:#1A0508; --danger:#FF9A8F; color-scheme:dark;
+  --brand:#B2465B; --brand-ink:#FFFFFF; --hot:#FF8352; --file-ink:#FFFFFF; --file-line:#FFFFFF;
 }
 *{box-sizing:border-box}
 [hidden]{display:none !important}
@@ -51,10 +51,10 @@ svg{display:block}
 .deck{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 10px;border-bottom:1px solid var(--line)}
 .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .title{flex:1;min-width:0}
-.appname{display:block;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--brand);margin-bottom:1px}
+.appname{display:block;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--hot);margin-bottom:1px}
 #songName{display:block;font-weight:700;font-size:17px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #songMeta{display:block;font-size:12px;color:var(--ink-soft);margin-top:1px}
-.file{position:relative;display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--accent);color:var(--accent);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden}
+.file{position:relative;display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--file-line);color:var(--file-ink);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden}
 .file input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
 .file:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 
