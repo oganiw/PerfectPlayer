@@ -15,24 +15,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#E9EDF3; --surface:#FFFFFF; --surface-2:#EEF1F6; --ink:#18203A; --ink-soft:#5B6580; --line:#D3D9E4;
-  --wave:#AAB4C9; --played:#2F44C4; --flag:#D99A12; --flag-ink:#2A1E00; --loop:rgba(217,154,18,.17);
-  --accent:#2F44C4; --accent-ink:#FFFFFF; --danger:#B3261E;
+  --bg:#F7F2EB; --surface:#FFFDFA; --surface-2:#E4D3BE; --ink:#33241E; --ink-soft:#75604F; --line:#DCC7AE;
+  --wave:#C3AB98; --played:#7A1C2B; --flag:#D99A12; --flag-ink:#2A1E00; --loop:rgba(217,154,18,.17);
+  --accent:#7A1C2B; --accent-ink:#FFFFFF; --danger:#A32B20;
+  --brand:#7A1C2B; --brand-ink:#FFFFFF;
   --num:"Barlow Semi Condensed","Avenir Next Condensed","Arial Narrow",system-ui,sans-serif;
   --text:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#11172B; --surface:#1A2140; --surface-2:#242C50; --ink:#E7EAF3; --ink-soft:#9AA3BE; --line:#2F3862;
-    --wave:#48527C; --played:#8C9BFF; --flag:#F0B53A; --flag-ink:#231800; --loop:rgba(240,181,58,.18);
-    --accent:#8C9BFF; --accent-ink:#0E1330; --danger:#FF8A80; color-scheme:dark;
+    --bg:#1E1613; --surface:#2A201C; --surface-2:#362A25; --ink:#F2E7DD; --ink-soft:#BDA89B; --line:#463730;
+    --wave:#6E564A; --played:#E28CA0; --flag:#F0B53A; --flag-ink:#231800; --loop:rgba(240,181,58,.18);
+    --accent:#E28CA0; --accent-ink:#2A0810; --danger:#FF9A8F; color-scheme:dark;
+    --brand:#B2465B; --brand-ink:#FFFFFF;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#11172B; --surface:#1A2140; --surface-2:#242C50; --ink:#E7EAF3; --ink-soft:#9AA3BE; --line:#2F3862;
-  --wave:#48527C; --played:#8C9BFF; --flag:#F0B53A; --flag-ink:#231800; --loop:rgba(240,181,58,.18);
-  --accent:#8C9BFF; --accent-ink:#0E1330; --danger:#FF8A80; color-scheme:dark;
+  --bg:#1E1613; --surface:#2A201C; --surface-2:#362A25; --ink:#F2E7DD; --ink-soft:#BDA89B; --line:#463730;
+  --wave:#6E564A; --played:#E28CA0; --flag:#F0B53A; --flag-ink:#231800; --loop:rgba(240,181,58,.18);
+  --accent:#E28CA0; --accent-ink:#2A0810; --danger:#FF9A8F; color-scheme:dark;
+  --brand:#B2465B; --brand-ink:#FFFFFF;
 }
 *{box-sizing:border-box}
 [hidden]{display:none !important}
@@ -48,7 +51,7 @@ svg{display:block}
 .deck{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 10px;border-bottom:1px solid var(--line)}
 .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .title{flex:1;min-width:0}
-.appname{display:block;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--accent);margin-bottom:1px}
+.appname{display:block;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--brand);margin-bottom:1px}
 #songName{display:block;font-weight:700;font-size:17px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #songMeta{display:block;font-size:12px;color:var(--ink-soft);margin-top:1px}
 .file{position:relative;display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--accent);color:var(--accent);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden}
@@ -66,7 +69,7 @@ svg{display:block}
 .viewsw{position:absolute;left:6px;top:6px;display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--surface);border:1px solid var(--line);opacity:.95}
 .stage.story .viewsw{top:auto;bottom:42px}
 .viewsw button{min-height:26px;padding:0 9px;border:none;border-radius:7px;background:none;font-size:12px;font-weight:600;color:var(--ink-soft)}
-.viewsw button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.viewsw button[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink)}
 .zoomctl{position:absolute;right:6px;top:24px;display:flex;flex-direction:column;gap:4px}
 .zoomctl button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:17px;line-height:1;padding:0}
 
@@ -79,7 +82,7 @@ svg{display:block}
 .tbtn{height:52px;border:none;border-radius:12px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;gap:3px;font-size:13px;font-weight:600;padding:0}
 .tbtn svg{width:22px;height:22px;fill:currentColor}
 .tbtn .n{font-family:var(--num);font-size:15px}
-.play{height:64px;border-radius:32px;background:var(--accent);color:var(--accent-ink)}
+.play{height:64px;border-radius:32px;background:var(--brand);color:var(--brand-ink)}
 .play svg{width:32px;height:32px}
 .mark{background:var(--flag);color:var(--flag-ink);font-size:14px;gap:4px}
 .mark svg{width:16px;height:16px}
@@ -130,7 +133,7 @@ summary{cursor:pointer;padding:12px 14px;font-size:14px;font-weight:600}
 .libbox{margin-top:14px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}
 .chip{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;min-height:32px;padding:0 12px;font-size:13px;font-weight:600}
-.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
 .plnew{display:flex;gap:6px;padding:0 14px 10px}
 .plnew input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--bg);padding:6px 10px;font-size:16px}
 .plfoot{display:flex;gap:6px;padding:0 14px 10px}
