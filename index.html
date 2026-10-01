@@ -57,6 +57,10 @@ svg{display:block}
 .file{position:relative;display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:10px;border:1.5px solid var(--file-line);color:var(--file-ink);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden}
 .file input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
 .file:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+@supports selector(:has(*)){
+  .file:focus-within{outline:none}
+  .file:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+}
 
 .stage{position:relative;background:var(--surface);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
 #zoom{display:block;width:100%;height:88px;touch-action:none;cursor:grab}
@@ -197,7 +201,7 @@ kbd{font-family:var(--num);font-size:12px;border:1px solid var(--line);border-bo
         <span id="songName">還沒選歌</span>
         <small id="songMeta">支援 mp3、m4a、wav 等音檔</small>
       </div>
-      <label class="file">開啟音檔<input type="file" id="file" multiple accept="audio/*,video/mp4,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus"></label>
+      <label class="file">開啟音檔<input type="file" id="file" multiple title="開啟音檔" accept="audio/*,video/mp4,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus"></label>
     </div>
 
     <div class="stage">
@@ -1634,6 +1638,7 @@ async function adoptFiles(list){
 $('#file').addEventListener('change', e => {
   const fs = Array.from(e.target.files || []);
   e.target.value = '';
+  try { e.target.blur(); } catch(err){}
   adoptFiles(fs);
 });
 $('#relinkBtn').addEventListener('click', () => {
